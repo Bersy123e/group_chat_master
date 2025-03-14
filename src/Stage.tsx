@@ -1,5 +1,5 @@
-import {ReactElement} from "react";
-import {StageBase, StageResponse, InitialData, Message} from "@chub-ai/stages-ts";
+import React, { ReactElement } from "react";
+import {StageBase, StageResponse, InitialData, Message, Character, DEFAULT_MESSAGE} from "@chub-ai/stages-ts";
 import {LoadResponse} from "@chub-ai/stages-ts/dist/types/load";
 
 /***
@@ -11,7 +11,9 @@ import {LoadResponse} from "@chub-ai/stages-ts/dist/types/load";
   but not for things like history, which is best managed ephemerally
   in the internal state of the Stage class itself.
  ***/
-type MessageStateType = any;
+type MessageStateType = {
+    lastResponders: string[];  // IDs of characters who responded last time
+};
 
 /***
  The type of the stage-specific configuration of this stage.
@@ -19,7 +21,10 @@ type MessageStateType = any;
  @description This is for things you want people to be able to configure,
   like background color.
  ***/
-type ConfigType = any;
+type ConfigType = {
+    maxResponders: number;     // Maximum number of characters that can respond (2-15)
+    chainProbability: number;  // Probability of chain responses (10-100)
+};
 
 /***
  The type that this stage persists chat initialization state in.
@@ -27,7 +32,7 @@ type ConfigType = any;
  like procedurally generated terrain that is only created ONCE and ONLY ONCE per chat,
  it belongs here.
  ***/
-type InitStateType = any;
+type InitStateType = null;     // We don't need initialization state
 
 /***
  The type that this stage persists dynamic chat-level state in.
@@ -37,7 +42,11 @@ type InitStateType = any;
     data like player health then it will enter an inconsistent state whenever
     they change branches or jump nodes. Use MessageStateType for that.
  ***/
-type ChatStateType = any;
+type ChatStateType = {
+    responseHistory: {
+        responders: string[];  // Character IDs who responded
+    }[];
+};
 
 /***
  A simple example class that implements the interfaces necessary for a Stage.
@@ -45,6 +54,9 @@ type ChatStateType = any;
  @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/stage.ts
  ***/
 export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, ConfigType> {
+    private responseHistory: ChatStateType['responseHistory'];
+    protected config: ConfigType;
+    protected characters: { [key: string]: Character };
 
     /***
      A very simple example internal state. Can be anything.
@@ -62,17 +74,26 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          User at @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/user.ts
          ***/
         super(data);
-        const {
-            characters,         // @type:  { [key: string]: Character }
-            users,                  // @type:  { [key: string]: User}
-            config,                                 //  @type:  ConfigType
-            messageState,                           //  @type:  MessageStateType
-            environment,                     // @type: Environment (which is a string)
-            initState,                             // @type: null | InitStateType
-            chatState                              // @type: null | ChatStateType
-        } = data;
-        this.myInternalState = messageState != null ? messageState : {'someKey': 'someValue'};
-        this.myInternalState['numUsers'] = Object.keys(users).length;
+        const { characters, config: rawConfig } = data;
+
+        this.characters = characters;
+        this.config = {
+            maxResponders: 5,
+            chainProbability: 50,
+            ...(rawConfig || {})
+        };
+
+        // Validate config
+        if (!this.config.maxResponders || this.config.maxResponders < 2 || this.config.maxResponders > 15) {
+            this.config.maxResponders = 5;
+        }
+        if (!this.config.chainProbability || this.config.chainProbability < 10 || this.config.chainProbability > 100) {
+            this.config.chainProbability = 50;
+        }
+
+        this.responseHistory = [];
+        this.myInternalState = {'someKey': 'someValue'};
+        this.myInternalState['numUsers'] = Object.keys(data.users).length;
         this.myInternalState['numChars'] = Object.keys(characters).length;
     }
 
@@ -92,7 +113,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
              briefly at the top of the screen, if any. ***/
             error: null,
             initState: null,
-            chatState: null,
+            chatState: {
+                responseHistory: this.responseHistory
+            },
         };
     }
 
@@ -107,39 +130,66 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         }
     }
 
+    private selectResponders(userMessage: Message): string[] {
+        const { config, characters } = this;
+        const charIds = Object.keys(characters);
+        if (charIds.length === 0) return [];
+
+        // Always select at least one responder
+        const responders: string[] = [];
+        const availableChars = new Set(charIds);
+
+        // Select first responder based on context relevance
+        const firstResponder = this.selectMostRelevantCharacter(userMessage, Array.from(availableChars));
+        if (firstResponder) {
+            responders.push(firstResponder);
+            availableChars.delete(firstResponder);
+        }
+
+        // Add additional responders based on chain probability
+        let currentProbability = config.chainProbability;
+        while (
+            responders.length < config.maxResponders && 
+            availableChars.size > 0 && 
+            Math.random() * 100 < currentProbability
+        ) {
+            const nextResponder = Array.from(availableChars)[Math.floor(Math.random() * availableChars.size)];
+            responders.push(nextResponder);
+            availableChars.delete(nextResponder);
+            currentProbability *= 0.7; // Decrease probability for each additional responder
+        }
+
+        return responders;
+    }
+
+    private selectMostRelevantCharacter(message: Message, availableCharIds: string[]): string | null {
+        if (availableCharIds.length === 0) return null;
+        
+        // For now, just select randomly. In a more sophisticated implementation,
+        // you could analyze message content and character descriptions
+        return availableCharIds[Math.floor(Math.random() * availableCharIds.length)];
+    }
+
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        /***
-         This is called after someone presses 'send', but before anything is sent to the LLM.
-         ***/
-        const {
-            content,            /*** @type: string
-             @description Just the last message about to be sent. ***/
-            anonymizedId,       /*** @type: string
-             @description An anonymized ID that is unique to this individual
-              in this chat, but NOT their Chub ID. ***/
-            isBot             /*** @type: boolean
-             @description Whether this is itself from another bot, ex. in a group chat. ***/
-        } = userMessage;
+        const responders = this.selectResponders(userMessage);
+        
+        // Create responder instructions for the LLM
+        const respondersInfo = responders.map(id => {
+            const char = this.characters[id];
+            return `${char.name} (${char.description})`;
+        }).join(", ");
+
+        const stageDirections = `The following characters will respond to this message in order, maintaining their personalities and interacting with each other naturally: ${respondersInfo}`;
+
         return {
-            /*** @type null | string @description A string to add to the
-             end of the final prompt sent to the LLM,
-             but that isn't persisted. ***/
-            stageDirections: null,
-            /*** @type MessageStateType | null @description the new state after the userMessage. ***/
-            messageState: {'someKey': this.myInternalState['someKey']},
-            /*** @type null | string @description If not null, the user's message itself is replaced
-             with this value, both in what's sent to the LLM and in the database. ***/
-            modifiedMessage: null,
-            /*** @type null | string @description A system message to append to the end of this message.
-             This is unique in that it shows up in the chat log and is sent to the LLM in subsequent messages,
-             but it's shown as coming from a system user and not any member of the chat. If you have things like
-             computed stat blocks that you want to show in the log, but don't want the LLM to start trying to
-             mimic/output them, they belong here. ***/
-            systemMessage: null,
-            /*** @type null | string @description an error message to show
-             briefly at the top of the screen, if any. ***/
-            error: null,
-            chatState: null,
+            stageDirections,
+            messageState: { lastResponders: responders },
+            chatState: {
+                responseHistory: [
+                    ...this.responseHistory,
+                    { responders }
+                ]
+            }
         };
     }
 
@@ -162,7 +212,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
              but that isn't persisted. ***/
             stageDirections: null,
             /*** @type MessageStateType | null @description the new state after the botMessage. ***/
-            messageState: {'someKey': this.myInternalState['someKey']},
+            messageState: null,
             /*** @type null | string @description If not null, the bot's response itself is replaced
              with this value, both in what's sent to the LLM subsequently and in the database. ***/
             modifiedMessage: null,
@@ -174,32 +224,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         };
     }
 
-
     render(): ReactElement {
-        /***
-         There should be no "work" done here. Just returning the React element to display.
-         If you're unfamiliar with React and prefer video, I've heard good things about
-         @link https://scrimba.com/learn/learnreact but haven't personally watched/used it.
-
-         For creating 3D and game components, react-three-fiber
-           @link https://docs.pmnd.rs/react-three-fiber/getting-started/introduction
-           and the associated ecosystem of libraries are quite good and intuitive.
-
-         Cuberun is a good example of a game built with them.
-           @link https://github.com/akarlsten/cuberun (Source)
-           @link https://cuberun.adamkarlsten.com/ (Demo)
-         ***/
-        return <div style={{
-            width: '100vw',
-            height: '100vh',
-            display: 'grid',
-            alignItems: 'stretch'
-        }}>
-            <div>Hello World! I'm an empty stage! With {this.myInternalState['someKey']}!</div>
-            <div>There is/are/were {this.myInternalState['numChars']} character(s)
-                and {this.myInternalState['numUsers']} human(s) here.
-            </div>
-        </div>;
+        return null as any;
     }
-
 }
