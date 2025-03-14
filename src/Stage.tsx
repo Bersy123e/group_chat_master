@@ -13,6 +13,7 @@ import { LoadResponse } from "@chub-ai/stages-ts/dist/types/load";
  ***/
 type MessageStateType = {
     lastResponders: string[];  // IDs of characters who responded last time
+    activeCharacters: Set<string>;  // Characters currently active in the conversation
 };
 
 /***
@@ -46,6 +47,8 @@ type ChatStateType = {
     responseHistory: {
         responders: string[];  // Character IDs who responded
         messageContent?: string; // Content of the message
+        timestamp: number;     // When the message was sent
+        eventContext?: string; // Context of the current event/topic
     }[];
 };
 
@@ -95,47 +98,69 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const charIds = Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
         if (charIds.length === 0) return '';
 
-        // Find the most relevant character based on message content and chat history
         const relevanceScores = new Map<string, number>();
+        const currentEvent = this.getCurrentEventContext(message);
+        const recentHistory = this.responseHistory.slice(-5);
 
         charIds.forEach(id => {
             const char = this.characters[id];
             let score = 0;
 
-            // Check character's description relevance to the message
+            // Event context relevance
+            if (currentEvent && char.description) {
+                const eventKeywords = currentEvent.toLowerCase().split(' ');
+                const descriptionKeywords = char.description.toLowerCase().split(' ');
+                score += this.calculateKeywordOverlap(eventKeywords, descriptionKeywords) * 2;
+            }
+
+            // Recent participation analysis
+            const characterParticipation = recentHistory.filter(h => h.responders.includes(id)).length;
+            if (characterParticipation > 0) {
+                // Character is active in conversation
+                score += 1;
+            } else {
+                // Penalty for inactive characters
+                score -= 2;
+            }
+
+            // Message content relevance
             if (char.description && message.content) {
                 const descriptionKeywords = char.description.toLowerCase().split(' ');
                 const messageKeywords = message.content.toLowerCase().split(' ');
                 score += this.calculateKeywordOverlap(descriptionKeywords, messageKeywords);
             }
 
-            // Check recent participation (avoid same character responding too frequently)
-            const recentResponses = this.responseHistory.slice(-3);
-            recentResponses.forEach((response, index) => {
-                if (response.responders.includes(id)) {
-                    score -= (3 - index); // Penalize recent participation, with more recent responses having higher penalty
-                }
-            });
-
             relevanceScores.set(id, score);
         });
 
         // Select character with highest relevance score
-        let maxScore = -Infinity;
-        let selectedChar = charIds[0];
-        relevanceScores.forEach((score, id) => {
-            if (score > maxScore) {
-                maxScore = score;
-                selectedChar = id;
+        return Array.from(relevanceScores.entries())
+            .sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    private getCurrentEventContext(message: Message): string {
+        const recentMessages = this.responseHistory.slice(-3);
+        const keywords = new Set<string>();
+        
+        // Extract keywords from recent messages
+        recentMessages.forEach(history => {
+            if (history.messageContent) {
+                const words = history.messageContent.toLowerCase()
+                    .split(' ')
+                    .filter(word => word.length > 3);  // Filter out small words
+                words.forEach(word => keywords.add(word));
             }
         });
 
-        return selectedChar;
-    }
+        // Add current message keywords
+        if (message.content) {
+            const currentWords = message.content.toLowerCase()
+                .split(' ')
+                .filter(word => word.length > 3);
+            currentWords.forEach(word => keywords.add(word));
+        }
 
-    private calculateKeywordOverlap(keywords1: string[], keywords2: string[]): number {
-        const set1 = new Set(keywords1);
-        return keywords2.filter(word => set1.has(word)).length;
+        return Array.from(keywords).join(' ');
     }
 
     private selectAdditionalResponders(mainResponderId: string, message: Message): string[] {
@@ -146,120 +171,151 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             )
         );
 
-        // Get characters who have interacted recently
-        const recentInteractions = new Map<string, Set<string>>();
-        this.responseHistory.slice(-5).forEach(response => {
-            response.responders.forEach(id1 => {
-                response.responders.forEach(id2 => {
-                    if (id1 !== id2) {
-                        if (!recentInteractions.has(id1)) {
-                            recentInteractions.set(id1, new Set());
-                        }
-                        recentInteractions.get(id1)!.add(id2);
-                    }
-                });
-            });
-        });
+        // Get recent interaction patterns
+        const recentInteractions = this.analyzeRecentInteractions();
+        const currentEvent = this.getCurrentEventContext(message);
+
+        // Calculate maximum responders based on context
+        const dynamicMaxResponders = Math.min(
+            this.config.maxResponders,
+            Math.max(2, Math.ceil(availableChars.size * 0.6))
+        );
 
         let currentProbability = this.config.chainProbability;
         while (
-            responders.length < this.config.maxResponders && 
+            responders.length < dynamicMaxResponders && 
             availableChars.size > 0 && 
             Math.random() * 100 < currentProbability
         ) {
-            // Score available characters based on their interaction history
             const scores = new Map<string, number>();
             availableChars.forEach(id => {
                 let score = 0;
                 
-                // Boost score if character has interacted with current responders
+                // Event context relevance
+                if (currentEvent && this.characters[id].description) {
+                    const eventKeywords = currentEvent.toLowerCase().split(' ');
+                    const descriptionKeywords = this.characters[id].description.toLowerCase().split(' ');
+                    score += this.calculateKeywordOverlap(eventKeywords, descriptionKeywords) * 1.5;
+                }
+
+                // Interaction patterns
                 responders.forEach(responderId => {
-                    if (recentInteractions.get(id)?.has(responderId)) {
-                        score += 2;
-                    }
+                    const interactionStrength = recentInteractions.get(`${id}-${responderId}`) || 0;
+                    score += interactionStrength * 2;
                 });
 
-                // Consider character's description relevance
-                if (this.characters[id].description && message.content) {
-                    const descriptionKeywords = this.characters[id].description.toLowerCase().split(' ');
-                    const messageKeywords = message.content.toLowerCase().split(' ');
-                    score += this.calculateKeywordOverlap(descriptionKeywords, messageKeywords);
+                // Activity decay
+                const lastActive = this.getLastActiveTimestamp(id);
+                if (lastActive) {
+                    const timeDiff = Date.now() - lastActive;
+                    score -= Math.min(3, timeDiff / (1000 * 60)); // Decay over minutes
                 }
 
                 scores.set(id, score);
             });
 
             // Select character with highest score
-            let maxScore = -Infinity;
-            let selectedChar = Array.from(availableChars)[0];
-            scores.forEach((score, id) => {
-                if (score > maxScore) {
-                    maxScore = score;
-                    selectedChar = id;
-                }
-            });
+            let selectedChar = Array.from(scores.entries())
+                .sort((a, b) => b[1] - a[1])[0][0];
 
             responders.push(selectedChar);
             availableChars.delete(selectedChar);
-            currentProbability *= 0.7;
+            currentProbability *= 0.6; // Steeper probability reduction
         }
 
         return responders;
     }
 
+    private analyzeRecentInteractions(): Map<string, number> {
+        const interactions = new Map<string, number>();
+        const recentHistory = this.responseHistory.slice(-10);
+
+        recentHistory.forEach((history, index) => {
+            const weight = (index + 1) / recentHistory.length; // More recent interactions have higher weight
+            history.responders.forEach(id1 => {
+                history.responders.forEach(id2 => {
+                    if (id1 !== id2) {
+                        const key = `${id1}-${id2}`;
+                        interactions.set(key, (interactions.get(key) || 0) + weight);
+                    }
+                });
+            });
+        });
+
+        return interactions;
+    }
+
+    private getLastActiveTimestamp(characterId: string): number | null {
+        for (let i = this.responseHistory.length - 1; i >= 0; i--) {
+            if (this.responseHistory[i].responders.includes(characterId)) {
+                return this.responseHistory[i].timestamp;
+            }
+        }
+        return null;
+    }
+
+    private calculateKeywordOverlap(keywords1: string[], keywords2: string[]): number {
+        const set1 = new Set(keywords1);
+        return keywords2.filter(word => set1.has(word)).length;
+    }
+
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         const mainResponder = this.selectMainResponder(userMessage);
         const allResponders = this.selectAdditionalResponders(mainResponder, userMessage);
+        const currentEvent = this.getCurrentEventContext(userMessage);
         
         // Get recent history for context
         const recentHistory = this.responseHistory.slice(-3);
         const contextInfo = recentHistory.length > 0 
             ? recentHistory.map(entry => 
-                `Previous interaction: ${entry.responders.map(id => this.characters[id].name).join(" and ")} discussed "${entry.messageContent}"`
+                `Previous interaction: ${entry.responders.map(id => this.characters[id].name).join(" and ")} ${entry.eventContext ? `discussed ${entry.eventContext}` : `said "${entry.messageContent}"`}`
               ).join("\n")
             : "";
 
         // Format character information
         const characterInfo = allResponders.map(id => {
             const char = this.characters[id];
-            return `{{char=${char.name}}}
+            return `${char.name}:
 Personality: ${char.personality || 'Based on description'}
 Description: ${char.description}
 ${char.example_dialogs ? `Example dialogs: ${char.example_dialogs}` : ''}`;
         }).join("\n\n");
 
-        const stageDirections = `System: This is a group conversation. Multiple characters will respond to the user's message in a natural, flowing dialogue.
+        const stageDirections = `System: This is an ongoing group conversation. Characters will interact naturally based on the current context and their relationships.
 
+Current context: ${currentEvent}
 ${contextInfo}
 
-Characters participating in this response (in order):
+Active characters:
 ${characterInfo}
 
 Response format:
-{{char=${this.characters[mainResponder].name}}} *starts the conversation, responding to the user's message*
-[Other characters join naturally, maintaining their personalities and creating dynamic interactions]
+{{char}} *character speaks and interacts naturally with others*
 
 Requirements:
-1. ${this.characters[mainResponder].name} MUST speak first
-2. Characters should interact with each other, not just respond to the user
-3. Each character should acknowledge what others have said
-4. Stay true to each character's personality and background
-5. Create natural dialogue flow
-6. Reference previous conversations when relevant
+1. Characters should interact based on the current context and their relationships
+2. Create natural dialogue flow with reactions to others' statements
+3. Stay true to each character's personality
+4. Reference relevant past interactions when appropriate
+5. Focus on the ongoing conversation rather than just responding to the user
+6. Characters can express emotions, actions, and reactions using *asterisks*
 
-User's message: "${userMessage.content}"
-
-Begin group response:`;
+Begin group interaction:`;
 
         return {
             stageDirections,
-            messageState: { lastResponders: allResponders },
+            messageState: { 
+                lastResponders: allResponders,
+                activeCharacters: new Set(allResponders)
+            },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
                     { 
                         responders: allResponders,
-                        messageContent: userMessage.content 
+                        messageContent: userMessage.content,
+                        timestamp: Date.now(),
+                        eventContext: currentEvent
                     }
                 ]
             }
@@ -287,38 +343,35 @@ Begin group response:`;
     }
 
     async setState(state: MessageStateType): Promise<void> {
-        /***
-         This can be called at any time, typically after a jump to a different place in the chat tree
-         or a swipe. Note how neither InitState nor ChatState are given here. They are not for
-         state that is affected by swiping.
-         ***/
         if (state?.lastResponders) {
-            this.responseHistory.push({ responders: state.lastResponders });
+            this.responseHistory.push({ 
+                responders: state.lastResponders,
+                timestamp: Date.now(),
+                eventContext: '',  // Empty context for state changes
+                messageContent: ''
+            });
         }
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         // Update the last response history entry with the bot's message content
         if (this.responseHistory.length > 0) {
-            this.responseHistory[this.responseHistory.length - 1].messageContent = botMessage.content;
+            const lastEntry = this.responseHistory[this.responseHistory.length - 1];
+            lastEntry.messageContent = botMessage.content;
         }
 
-        // Ensure the response follows the character format
+        // Clean up character tags in the response
         let modifiedMessage = botMessage.content;
-        const lastResponders = this.responseHistory[this.responseHistory.length - 1]?.responders || [];
-        
-        // Check if response needs formatting
-        if (!modifiedMessage.includes('{{char=')) {
-            const formattedResponses = lastResponders.map(id => {
+        if (!modifiedMessage.includes('{{char}}')) {
+            const lastResponders = this.responseHistory[this.responseHistory.length - 1]?.responders || [];
+            modifiedMessage = lastResponders.map(id => {
                 const char = this.characters[id];
-                return `{{char=${char.name}}} ${modifiedMessage}`;
+                const charName = char.name;
+                return modifiedMessage.replace(new RegExp(`{{char=${charName}}}`, 'g'), '{{char}}');
             }).join('\n\n');
-            modifiedMessage = formattedResponses;
         }
 
         return {
-            stageDirections: null,
-            messageState: null,
             modifiedMessage,
             error: null,
             systemMessage: null,
