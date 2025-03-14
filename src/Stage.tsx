@@ -211,33 +211,45 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const mainResponder = this.selectMainResponder(userMessage);
         const allResponders = this.selectAdditionalResponders(mainResponder, userMessage);
         
-        const respondersInfo = allResponders.map(id => {
-            const char = this.characters[id];
-            return `${char.name} (${char.description})`;
-        });
-
-        // Create dynamic conversation instructions with context
+        // Get recent history for context
         const recentHistory = this.responseHistory.slice(-3);
         const contextInfo = recentHistory.length > 0 
-            ? "\nRecent interactions:\n" + recentHistory.map(entry => 
-                `- ${entry.responders.map(id => this.characters[id].name).join(", ")} discussed: ${entry.messageContent}`
+            ? recentHistory.map(entry => 
+                `Previous interaction: ${entry.responders.map(id => this.characters[id].name).join(" and ")} discussed "${entry.messageContent}"`
               ).join("\n")
             : "";
 
-        const stageDirections = `The following characters will participate in this conversation, responding in order and interacting naturally with each other:
+        // Format character information
+        const characterInfo = allResponders.map(id => {
+            const char = this.characters[id];
+            return `{{char=${char.name}}}
+Personality: ${char.personality || 'Based on description'}
+Description: ${char.description}
+${char.example_dialogs ? `Example dialogs: ${char.example_dialogs}` : ''}`;
+        }).join("\n\n");
 
-${respondersInfo.map((info, i) => `${i + 1}. ${info}`).join('\n')}
+        const stageDirections = `System: This is a group conversation. Multiple characters will respond to the user's message in a natural, flowing dialogue.
 
 ${contextInfo}
 
-Instructions:
-1. ${this.characters[mainResponder].name} MUST respond first
-2. Each character should acknowledge and react to previous responses
-3. Maintain each character's unique personality and perspective
-4. Create natural dialogue flow with interactions between characters
-5. Reference previous conversations and relationships when relevant
-6. Each character should contribute meaningfully to the discussion
-7. Keep the conversation dynamic and engaging`;
+Characters participating in this response (in order):
+${characterInfo}
+
+Response format:
+{{char=${this.characters[mainResponder].name}}} *starts the conversation, responding to the user's message*
+[Other characters join naturally, maintaining their personalities and creating dynamic interactions]
+
+Requirements:
+1. ${this.characters[mainResponder].name} MUST speak first
+2. Characters should interact with each other, not just respond to the user
+3. Each character should acknowledge what others have said
+4. Stay true to each character's personality and background
+5. Create natural dialogue flow
+6. Reference previous conversations when relevant
+
+User's message: "${userMessage.content}"
+
+Begin group response:`;
 
         return {
             stageDirections,
@@ -291,10 +303,23 @@ Instructions:
             this.responseHistory[this.responseHistory.length - 1].messageContent = botMessage.content;
         }
 
+        // Ensure the response follows the character format
+        let modifiedMessage = botMessage.content;
+        const lastResponders = this.responseHistory[this.responseHistory.length - 1]?.responders || [];
+        
+        // Check if response needs formatting
+        if (!modifiedMessage.includes('{{char=')) {
+            const formattedResponses = lastResponders.map(id => {
+                const char = this.characters[id];
+                return `{{char=${char.name}}} ${modifiedMessage}`;
+            }).join('\n\n');
+            modifiedMessage = formattedResponses;
+        }
+
         return {
             stageDirections: null,
             messageState: null,
-            modifiedMessage: null,
+            modifiedMessage,
             error: null,
             systemMessage: null,
             chatState: null
