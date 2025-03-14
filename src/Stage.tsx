@@ -101,16 +101,26 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         }
     }
 
-    private selectMainResponder(message: Message): string {
+    private selectMainResponder(message: Message): string[] {
         const charIds = Object.keys(this.characters).filter(id => 
             !this.characters[id].isRemoved && 
             !this.getTemporarilyExcluded().has(id)
         );
-        if (charIds.length === 0) return '';
+        if (charIds.length === 0) return [];
 
-        const scores = new Map<string, number>();
+        const relevanceScores = new Map<string, number>();
         const currentEvent = this.getCurrentEventContext(message);
-        const recentHistory = this.responseHistory.slice(-3);
+        const recentHistory = this.responseHistory.slice(-5);
+
+        // Direct mention check
+        const mentionedChars = charIds.filter(id => {
+            const char = this.characters[id];
+            return message.content?.toLowerCase().includes(char.name.toLowerCase());
+        });
+
+        if (mentionedChars.length > 0) {
+            return mentionedChars;
+        }
 
         charIds.forEach(id => {
             const char = this.characters[id];
@@ -120,22 +130,36 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             if (currentEvent && char.description) {
                 const eventKeywords = currentEvent.toLowerCase().split(' ');
                 const descriptionKeywords = char.description.toLowerCase().split(' ');
-                score += this.calculateKeywordOverlap(eventKeywords, descriptionKeywords);
+                score += this.calculateKeywordOverlap(eventKeywords, descriptionKeywords) * 2;
+            }
+
+            // Message content relevance
+            if (char.personality && message.content) {
+                const personalityKeywords = char.personality.toLowerCase().split(' ');
+                const messageKeywords = message.content.toLowerCase().split(' ');
+                score += this.calculateKeywordOverlap(personalityKeywords, messageKeywords) * 1.5;
             }
 
             // Recent participation balance
             const recentParticipation = recentHistory.filter(h => h.responders.includes(id)).length;
-            score -= recentParticipation;
+            score -= recentParticipation * 0.5;
 
-            // Add some randomness for natural variety
+            // Add some randomness for variety
             score += Math.random();
 
-            scores.set(id, score);
+            relevanceScores.set(id, score);
         });
 
-        // Select character with highest score
-        return Array.from(scores.entries())
-            .sort((a, b) => b[1] - a[1])[0][0];
+        // Select top scoring characters
+        const sortedChars = Array.from(relevanceScores.entries())
+            .sort((a, b) => b[1] - a[1]);
+        
+        // Return at least one character, more if scores are close
+        const topScore = sortedChars[0][1];
+        return sortedChars
+            .filter(([_, score]) => score > topScore * 0.7)
+            .slice(0, Math.min(3, Math.ceil(charIds.length / 2)))
+            .map(([id, _]) => id);
     }
 
     private getTemporarilyExcluded(): Set<string> {
@@ -183,32 +207,38 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         return Array.from(keywords).join(' ');
     }
 
-    private selectAdditionalResponders(mainResponderId: string, message: Message): string[] {
-        const responders = [mainResponderId];
+    private selectAdditionalResponders(mainResponders: string[], message: Message): string[] {
+        const allResponders = [...mainResponders];
         const availableChars = Object.keys(this.characters).filter(id => 
             !this.characters[id].isRemoved && 
             !this.getTemporarilyExcluded().has(id) && 
-            id !== mainResponderId
+            !mainResponders.includes(id)
         );
 
+        if (availableChars.length === 0) return allResponders;
+
         let currentProbability = this.config.chainProbability;
-        
+        const maxAdditional = Math.min(
+            this.config.maxResponders - mainResponders.length,
+            Math.ceil(availableChars.length * 0.6)
+        );
+
         while (
-            responders.length < this.config.maxResponders && 
+            allResponders.length < this.config.maxResponders && 
             availableChars.length > 0 && 
+            allResponders.length < maxAdditional &&
             Math.random() * 100 < currentProbability
         ) {
             const randomIndex = Math.floor(Math.random() * availableChars.length);
             const selectedChar = availableChars[randomIndex];
             
-            responders.push(selectedChar);
+            allResponders.push(selectedChar);
             availableChars.splice(randomIndex, 1);
             
-            // Reduce probability for each additional responder
-            currentProbability *= 0.7;
+            currentProbability *= 0.8;
         }
 
-        return responders;
+        return allResponders;
     }
 
     private analyzeRecentInteractions(): Map<string, number> {
@@ -248,8 +278,47 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const isFirstMessage = this.isFirstMessage;
         this.isFirstMessage = false;
         
-        const mainResponder = this.selectMainResponder(userMessage);
-        const allResponders = this.selectAdditionalResponders(mainResponder, userMessage);
+        // Handle first message
+        if (isFirstMessage) {
+            const activeChars = Object.entries(this.characters)
+                .filter(([_, char]) => !char.isRemoved && char.first_message)
+                .map(([id, _]) => id);
+
+            return {
+                stageDirections: `System: This is the start of the conversation. Characters will introduce themselves naturally.
+
+Active characters:
+${activeChars.map(id => {
+    const char = this.characters[id];
+    return `${char.name}:
+First message: ${char.first_message}
+Personality: ${char.personality || 'Based on description'}
+Description: ${char.description}`;
+}).join('\n\n')}
+
+Response format:
+{{char}} *expresses emotions or actions* Says something while interacting naturally
+
+Begin scene with character introductions:`,
+                messageState: {
+                    lastResponders: activeChars,
+                    activeCharacters: new Set(activeChars),
+                    temporarilyExcluded: new Set()
+                },
+                chatState: {
+                    responseHistory: [{
+                        responders: activeChars,
+                        timestamp: Date.now(),
+                        eventContext: 'Initial introductions',
+                        messageContent: ''
+                    }],
+                    firstMessage: true
+                }
+            };
+        }
+
+        const mainResponders = this.selectMainResponder(userMessage);
+        const allResponders = this.selectAdditionalResponders(mainResponders, userMessage);
         const currentEvent = this.getCurrentEventContext(userMessage);
         
         // Get recent history for context
@@ -269,24 +338,24 @@ Description: ${char.description}
 ${char.example_dialogs ? `Example dialogs: ${char.example_dialogs}` : ''}`;
         }).join("\n\n");
 
-        const stageDirections = `System: This is a dynamic group conversation where characters interact naturally in their shared world.
+        const stageDirections = `System: This is a dynamic group conversation where characters interact naturally with each other.
 
-${isFirstMessage ? 'This is the start of the conversation. Set the scene and establish the world.' : `Current context: ${currentEvent}`}
+Current context: ${currentEvent}
 ${contextInfo}
 
 Active characters:
 ${characterInfo}
 
 Response format:
-{{char}} *expresses emotions or actions* Says something while interacting naturally
+{{char}} *expresses emotions or actions* Says something while interacting naturally with others
 
 Guidelines:
-1. Characters should interact naturally within their shared world
+1. Characters should respond to each other in a natural conversation flow
 2. Use *asterisks* for actions and emotional expressions
-3. Keep responses in character and consistent with their personalities
-4. Create an immersive experience through natural dialogue and interactions
+3. Keep responses in character and maintain conversation flow
+4. Characters can interact with each other in the same message
 
-Begin ${isFirstMessage ? 'scene' : 'interaction'}:`;
+Continue conversation:`;
 
         return {
             stageDirections,
