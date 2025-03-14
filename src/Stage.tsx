@@ -1,6 +1,6 @@
 import React, { ReactElement } from "react";
-import {StageBase, StageResponse, InitialData, Message, Character, DEFAULT_MESSAGE} from "@chub-ai/stages-ts";
-import {LoadResponse} from "@chub-ai/stages-ts/dist/types/load";
+import { StageBase, StageResponse, InitialData, Message, Character } from "@chub-ai/stages-ts";
+import { LoadResponse } from "@chub-ai/stages-ts/dist/types/load";
 
 /***
  The type that this stage persists message-level state in.
@@ -54,16 +54,9 @@ type ChatStateType = {
  @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/stage.ts
  ***/
 export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, ConfigType> {
-    private responseHistory: ChatStateType['responseHistory'];
-    protected config: ConfigType;
-    protected characters: { [key: string]: Character };
-
-    /***
-     A very simple example internal state. Can be anything.
-     This is ephemeral in the sense that it isn't persisted to a database,
-     but exists as long as the instance does, i.e., the chat page is open.
-     ***/
-    myInternalState: {[key: string]: any};
+    private responseHistory: ChatStateType['responseHistory'] = [];
+    private characters: { [key: string]: Character };
+    private config: ConfigType;
 
     constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, ConfigType>) {
         /***
@@ -75,7 +68,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          ***/
         super(data);
         const { characters, config: rawConfig } = data;
-
+        
         this.characters = characters;
         this.config = {
             maxResponders: 5,
@@ -90,11 +83,71 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         if (!this.config.chainProbability || this.config.chainProbability < 10 || this.config.chainProbability > 100) {
             this.config.chainProbability = 50;
         }
+    }
 
-        this.responseHistory = [];
-        this.myInternalState = {'someKey': 'someValue'};
-        this.myInternalState['numUsers'] = Object.keys(data.users).length;
-        this.myInternalState['numChars'] = Object.keys(characters).length;
+    private selectMainResponder(message: Message, history: any[]): string {
+        const charIds = Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
+        if (charIds.length === 0) return '';
+
+        // Analyze message and history to find most relevant character
+        // For now, just select randomly
+        return charIds[Math.floor(Math.random() * charIds.length)];
+    }
+
+    private selectAdditionalResponders(mainResponderId: string): string[] {
+        const responders = [mainResponderId];
+        const availableChars = new Set(
+            Object.keys(this.characters).filter(id => 
+                !this.characters[id].isRemoved && id !== mainResponderId
+            )
+        );
+
+        let currentProbability = this.config.chainProbability;
+        while (
+            responders.length < this.config.maxResponders && 
+            availableChars.size > 0 && 
+            Math.random() * 100 < currentProbability
+        ) {
+            const nextResponder = Array.from(availableChars)[Math.floor(Math.random() * availableChars.size)];
+            responders.push(nextResponder);
+            availableChars.delete(nextResponder);
+            currentProbability *= 0.7; // Decrease probability for each additional responder
+        }
+
+        return responders;
+    }
+
+    async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+        const mainResponder = this.selectMainResponder(userMessage, []);
+        const allResponders = this.selectAdditionalResponders(mainResponder);
+        
+        const respondersInfo = allResponders.map(id => {
+            const char = this.characters[id];
+            return `${char.name} (${char.description})`;
+        });
+
+        // Create dynamic conversation instructions
+        const stageDirections = `The following characters will participate in this conversation, responding in order and interacting naturally with each other:
+
+${respondersInfo.map((info, i) => `${i + 1}. ${info}`).join('\n')}
+
+Instructions:
+1. ${this.characters[mainResponder].name} MUST respond first
+2. Each character should acknowledge and react to previous responses
+3. Maintain each character's unique personality and perspective
+4. Keep the conversation natural and flowing
+5. Each character should contribute meaningfully to the discussion`;
+
+        return {
+            stageDirections,
+            messageState: { lastResponders: allResponders },
+            chatState: {
+                responseHistory: [
+                    ...this.responseHistory,
+                    { responders: allResponders }
+                ]
+            }
+        };
     }
 
     async load(): Promise<Partial<LoadResponse<InitStateType, ChatStateType, MessageStateType>>> {
@@ -113,9 +166,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
              briefly at the top of the screen, if any. ***/
             error: null,
             initState: null,
-            chatState: {
-                responseHistory: this.responseHistory
-            },
+            chatState: { responseHistory: this.responseHistory }
         };
     }
 
@@ -125,99 +176,16 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          or a swipe. Note how neither InitState nor ChatState are given here. They are not for
          state that is affected by swiping.
          ***/
-        if (state != null) {
-            this.myInternalState = {...this.myInternalState, ...state};
+        if (state?.lastResponders) {
+            this.responseHistory.push({ responders: state.lastResponders });
         }
-    }
-
-    private selectResponders(userMessage: Message): string[] {
-        const { config, characters } = this;
-        const charIds = Object.keys(characters);
-        if (charIds.length === 0) return [];
-
-        // Always select at least one responder
-        const responders: string[] = [];
-        const availableChars = new Set(charIds);
-
-        // Select first responder based on context relevance
-        const firstResponder = this.selectMostRelevantCharacter(userMessage, Array.from(availableChars));
-        if (firstResponder) {
-            responders.push(firstResponder);
-            availableChars.delete(firstResponder);
-        }
-
-        // Add additional responders based on chain probability
-        let currentProbability = config.chainProbability;
-        while (
-            responders.length < config.maxResponders && 
-            availableChars.size > 0 && 
-            Math.random() * 100 < currentProbability
-        ) {
-            const nextResponder = Array.from(availableChars)[Math.floor(Math.random() * availableChars.size)];
-            responders.push(nextResponder);
-            availableChars.delete(nextResponder);
-            currentProbability *= 0.7; // Decrease probability for each additional responder
-        }
-
-        return responders;
-    }
-
-    private selectMostRelevantCharacter(message: Message, availableCharIds: string[]): string | null {
-        if (availableCharIds.length === 0) return null;
-        
-        // For now, just select randomly. In a more sophisticated implementation,
-        // you could analyze message content and character descriptions
-        return availableCharIds[Math.floor(Math.random() * availableCharIds.length)];
-    }
-
-    async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        const responders = this.selectResponders(userMessage);
-        
-        // Create responder instructions for the LLM
-        const respondersInfo = responders.map(id => {
-            const char = this.characters[id];
-            return `${char.name} (${char.description})`;
-        }).join(", ");
-
-        const stageDirections = `The following characters will respond to this message in order, maintaining their personalities and interacting with each other naturally: ${respondersInfo}`;
-
-        return {
-            stageDirections,
-            messageState: { lastResponders: responders },
-            chatState: {
-                responseHistory: [
-                    ...this.responseHistory,
-                    { responders }
-                ]
-            }
-        };
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        /***
-         This is called immediately after a response from the LLM.
-         ***/
-        const {
-            content,            /*** @type: string
-             @description The LLM's response. ***/
-            anonymizedId,       /*** @type: string
-             @description An anonymized ID that is unique to this individual
-              in this chat, but NOT their Chub ID. ***/
-            isBot             /*** @type: boolean
-             @description Whether this is from a bot, conceivably always true. ***/
-        } = botMessage;
         return {
-            /*** @type null | string @description A string to add to the
-             end of the final prompt sent to the LLM,
-             but that isn't persisted. ***/
             stageDirections: null,
-            /*** @type MessageStateType | null @description the new state after the botMessage. ***/
             messageState: null,
-            /*** @type null | string @description If not null, the bot's response itself is replaced
-             with this value, both in what's sent to the LLM subsequently and in the database. ***/
             modifiedMessage: null,
-            /*** @type null | string @description an error message to show
-             briefly at the top of the screen, if any. ***/
             error: null,
             systemMessage: null,
             chatState: null
@@ -225,6 +193,6 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     }
 
     render(): ReactElement {
-        return null as any;
+        return <></>;
     }
 }
