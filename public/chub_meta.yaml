@@ -81,3 +81,23 @@ github_path: 'https://github.com/Bersy123e/group_chat_master'
 
 extension_id: 'group-chat-master-d3fdf75a9edd'
 
+name: "Group Chat Master"
+description: "A stage that enables dynamic group chat interactions with multiple characters responding in a natural conversation flow"
+version: "1.0.0"
+type: "stage"
+
+config:
+  maxResponders:
+    type: "number"
+    default: 5
+    min: 2
+    max: 15
+    description: "Maximum number of characters that can respond to a message"
+    
+  chainProbability:
+    type: "number"
+    default: 50
+    min: 10
+    max: 100
+    description: "Probability (%) of additional characters joining the conversation"
+
