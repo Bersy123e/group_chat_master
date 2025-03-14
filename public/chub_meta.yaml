@@ -31,11 +31,21 @@
 # If your stage requires a configuration but has no
 #   defined schema, it won't work.
 config_schema:
-  type: object
+  type: "object"
   properties:
-    health:
-      type: integer
-      default: 100
+    maxResponders:
+      type: "integer"
+      default: 5
+      minimum: 2
+      maximum: 15
+      description: "Maximum number of characters that can respond to a message"
+    chainProbability:
+      type: "integer"
+      default: 50
+      minimum: 10
+      maximum: 100
+      description: "Probability (%) of additional characters joining the conversation"
+  required: ["maxResponders", "chainProbability"]
 
 # The schema of the state that you store.
 # This isn't needed even if you do store state,
@@ -100,4 +110,6 @@ config:
     min: 10
     max: 100
     description: "Probability (%) of additional characters joining the conversation"
+
+position: "NONE"  # Stage doesn't need UI, it just modifies the prompts
 
