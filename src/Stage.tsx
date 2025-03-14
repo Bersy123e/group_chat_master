@@ -45,6 +45,7 @@ type InitStateType = null;     // We don't need initialization state
 type ChatStateType = {
     responseHistory: {
         responders: string[];  // Character IDs who responded
+        messageContent?: string; // Content of the message
     }[];
 };
 
@@ -67,7 +68,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          User at @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/user.ts
          ***/
         super(data);
-        const { characters, config: rawConfig } = data;
+        const { characters, config: rawConfig, chatState } = data;
         
         this.characters = characters;
         this.config = {
@@ -83,18 +84,61 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         if (!this.config.chainProbability || this.config.chainProbability < 10 || this.config.chainProbability > 100) {
             this.config.chainProbability = 50;
         }
+
+        // Initialize response history from chatState if available
+        if (chatState?.responseHistory) {
+            this.responseHistory = chatState.responseHistory;
+        }
     }
 
-    private selectMainResponder(message: Message, history: any[]): string {
+    private selectMainResponder(message: Message): string {
         const charIds = Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
         if (charIds.length === 0) return '';
 
-        // Analyze message and history to find most relevant character
-        // For now, just select randomly
-        return charIds[Math.floor(Math.random() * charIds.length)];
+        // Find the most relevant character based on message content and chat history
+        const relevanceScores = new Map<string, number>();
+
+        charIds.forEach(id => {
+            const char = this.characters[id];
+            let score = 0;
+
+            // Check character's description relevance to the message
+            if (char.description && message.content) {
+                const descriptionKeywords = char.description.toLowerCase().split(' ');
+                const messageKeywords = message.content.toLowerCase().split(' ');
+                score += this.calculateKeywordOverlap(descriptionKeywords, messageKeywords);
+            }
+
+            // Check recent participation (avoid same character responding too frequently)
+            const recentResponses = this.responseHistory.slice(-3);
+            recentResponses.forEach((response, index) => {
+                if (response.responders.includes(id)) {
+                    score -= (3 - index); // Penalize recent participation, with more recent responses having higher penalty
+                }
+            });
+
+            relevanceScores.set(id, score);
+        });
+
+        // Select character with highest relevance score
+        let maxScore = -Infinity;
+        let selectedChar = charIds[0];
+        relevanceScores.forEach((score, id) => {
+            if (score > maxScore) {
+                maxScore = score;
+                selectedChar = id;
+            }
+        });
+
+        return selectedChar;
     }
 
-    private selectAdditionalResponders(mainResponderId: string): string[] {
+    private calculateKeywordOverlap(keywords1: string[], keywords2: string[]): number {
+        const set1 = new Set(keywords1);
+        return keywords2.filter(word => set1.has(word)).length;
+    }
+
+    private selectAdditionalResponders(mainResponderId: string, message: Message): string[] {
         const responders = [mainResponderId];
         const availableChars = new Set(
             Object.keys(this.characters).filter(id => 
@@ -102,41 +146,98 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             )
         );
 
+        // Get characters who have interacted recently
+        const recentInteractions = new Map<string, Set<string>>();
+        this.responseHistory.slice(-5).forEach(response => {
+            response.responders.forEach(id1 => {
+                response.responders.forEach(id2 => {
+                    if (id1 !== id2) {
+                        if (!recentInteractions.has(id1)) {
+                            recentInteractions.set(id1, new Set());
+                        }
+                        recentInteractions.get(id1)!.add(id2);
+                    }
+                });
+            });
+        });
+
         let currentProbability = this.config.chainProbability;
         while (
             responders.length < this.config.maxResponders && 
             availableChars.size > 0 && 
             Math.random() * 100 < currentProbability
         ) {
-            const nextResponder = Array.from(availableChars)[Math.floor(Math.random() * availableChars.size)];
-            responders.push(nextResponder);
-            availableChars.delete(nextResponder);
-            currentProbability *= 0.7; // Decrease probability for each additional responder
+            // Score available characters based on their interaction history
+            const scores = new Map<string, number>();
+            availableChars.forEach(id => {
+                let score = 0;
+                
+                // Boost score if character has interacted with current responders
+                responders.forEach(responderId => {
+                    if (recentInteractions.get(id)?.has(responderId)) {
+                        score += 2;
+                    }
+                });
+
+                // Consider character's description relevance
+                if (this.characters[id].description && message.content) {
+                    const descriptionKeywords = this.characters[id].description.toLowerCase().split(' ');
+                    const messageKeywords = message.content.toLowerCase().split(' ');
+                    score += this.calculateKeywordOverlap(descriptionKeywords, messageKeywords);
+                }
+
+                scores.set(id, score);
+            });
+
+            // Select character with highest score
+            let maxScore = -Infinity;
+            let selectedChar = Array.from(availableChars)[0];
+            scores.forEach((score, id) => {
+                if (score > maxScore) {
+                    maxScore = score;
+                    selectedChar = id;
+                }
+            });
+
+            responders.push(selectedChar);
+            availableChars.delete(selectedChar);
+            currentProbability *= 0.7;
         }
 
         return responders;
     }
 
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        const mainResponder = this.selectMainResponder(userMessage, []);
-        const allResponders = this.selectAdditionalResponders(mainResponder);
+        const mainResponder = this.selectMainResponder(userMessage);
+        const allResponders = this.selectAdditionalResponders(mainResponder, userMessage);
         
         const respondersInfo = allResponders.map(id => {
             const char = this.characters[id];
             return `${char.name} (${char.description})`;
         });
 
-        // Create dynamic conversation instructions
+        // Create dynamic conversation instructions with context
+        const recentHistory = this.responseHistory.slice(-3);
+        const contextInfo = recentHistory.length > 0 
+            ? "\nRecent interactions:\n" + recentHistory.map(entry => 
+                `- ${entry.responders.map(id => this.characters[id].name).join(", ")} discussed: ${entry.messageContent}`
+              ).join("\n")
+            : "";
+
         const stageDirections = `The following characters will participate in this conversation, responding in order and interacting naturally with each other:
 
 ${respondersInfo.map((info, i) => `${i + 1}. ${info}`).join('\n')}
+
+${contextInfo}
 
 Instructions:
 1. ${this.characters[mainResponder].name} MUST respond first
 2. Each character should acknowledge and react to previous responses
 3. Maintain each character's unique personality and perspective
-4. Keep the conversation natural and flowing
-5. Each character should contribute meaningfully to the discussion`;
+4. Create natural dialogue flow with interactions between characters
+5. Reference previous conversations and relationships when relevant
+6. Each character should contribute meaningfully to the discussion
+7. Keep the conversation dynamic and engaging`;
 
         return {
             stageDirections,
@@ -144,7 +245,10 @@ Instructions:
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
-                    { responders: allResponders }
+                    { 
+                        responders: allResponders,
+                        messageContent: userMessage.content 
+                    }
                 ]
             }
         };
@@ -182,6 +286,11 @@ Instructions:
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+        // Update the last response history entry with the bot's message content
+        if (this.responseHistory.length > 0) {
+            this.responseHistory[this.responseHistory.length - 1].messageContent = botMessage.content;
+        }
+
         return {
             stageDirections: null,
             messageState: null,
