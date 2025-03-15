@@ -403,7 +403,7 @@ CRITICAL RULES:
 8. Characters may reference absent characters in past tense or wondering where they are, but absent characters CANNOT speak or act.
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 10. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
-11. AVOID REPETITIVE ACTIONS: Do not have characters perform the same actions repeatedly (like constantly touching under the table, adjusting clothing, etc).
+11. AVOID ALL REPETITIVE PATTERNS: Do not reuse the same actions, gestures, speech patterns, or behavioral templates from previous responses. Each response should feel fresh and unique.
 12. MAINTAIN CONSISTENT FORMATTING: Use the exact same format throughout the entire response.
 13. CHARACTERS SHOULD FOCUS ON EACH OTHER, not just on responding to the user's message.
 14. DO NOT CREATE ANY NEW CHARACTERS - even for background roles or one-time mentions. Use only the characters listed above.
@@ -434,6 +434,12 @@ CHARACTER INTERACTION RULES:
 - Create DYNAMIC GROUP INTERACTIONS where multiple characters participate in the same conversation thread
 - Include non-verbal reactions like facial expressions, body language, or emotional responses to others
 - Let characters interrupt or respond directly to each other's remarks when appropriate
+- VARY THE TYPES OF INTERACTIONS between characters from scene to scene
+- Create UNIQUE DYNAMICS between different character pairs/groups based on their relationships
+- Characters should respond in CONSISTENTLY UNIQUE ways that reflect their individual personalities
+- Don't fall into patterns of "Character A always disagrees with Character B" - keep relationships dynamic
+- Not every interaction needs to be verbal - use shared activities, silent exchanges, or parallel actions
+- AVOID REPEATING THE SAME INTERACTION PATTERNS from previous responses
 
 USER INTERACTION RULES:
 - The user is NOT a character in your scene - they are an external entity
@@ -463,6 +469,18 @@ CREATING A BOOK-LIKE NARRATIVE:
 ${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate' : '- ESTABLISH THE SETTING and atmosphere in rich detail'}
 - MAINTAIN CONTINUITY with previous scenes and conversations
 - MAINTAIN CONSISTENT FORMATTING throughout the entire response
+
+LINGUISTIC AND BEHAVIORAL DIVERSITY:
+- USE VARIED VOCABULARY and sentence structures for each character, appropriate to their personality
+- AVOID REPETITIVE SPEECH PATTERNS like characters always starting sentences the same way
+- VARY EMOTIONAL REACTIONS beyond the basic (smiled, nodded, frowned) - use rich and diverse expressions
+- AVOID OVERUSED GESTURES and actions (nodding, sighing, raising eyebrows, etc.) - be creative with body language
+- Each character should have their UNIQUE MANNERISMS that fit their personality, not generic ones
+- VARY THE RHYTHM of interactions - mix quick exchanges with longer reflections
+- Avoid always following the same sequence of character responses
+- DON'T RELY ON THE SAME NARRATIVE STRUCTURE in each response
+- INCORPORATE DIFFERENT SENSES beyond just visual (sounds, smells, textures, tastes)
+- AVOID MIRRORING previous responses in structure or content
 
 RESPONSE FORMAT:
 - Use **Character Name** to indicate who is speaking or acting
