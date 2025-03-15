@@ -362,13 +362,26 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             else {
                 // Some characters might be busy with their activities and not respond
                 respondingCharacterIds = activeChars.filter(id => {
-                    // Characters engaged in focused activities have less chance to respond
-                    if (this.characterStates[id].currentActivity && 
-                        !['conversing', 'listening', 'watching'].includes(this.characterStates[id].currentActivity.toLowerCase())) {
-                        // 50% chance to respond if engaged in activity
-                        return Math.random() < 0.5;
+                    // If character state isn't defined, include them
+                    if (!this.characterStates[id]) {
+                        return true;
                     }
-                    return true;
+                    
+                    // If no current activity is set, include them
+                    if (!this.characterStates[id].currentActivity) {
+                        return true;
+                    }
+                    
+                    // Get activity and convert to lowercase safely
+                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
+                    
+                    // Characters who are conversing, listening or watching will always respond
+                    if (['conversing', 'listening', 'watching'].includes(activity)) {
+                        return true;
+                    }
+                    
+                    // Characters engaged in other activities have 50% chance to respond
+                    return Math.random() < 0.5;
                 });
                 
                 // If still too many responders, limit to avoid overwhelming response
@@ -460,7 +473,11 @@ ${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full c
 IMPORTANT CHARACTER PARTICIPATION RULES:
 - NOT EVERY CHARACTER NEEDS TO SPEAK IN EVERY SCENE. This is critical for natural flow.
 - Some characters may be present but silent or just briefly react with a nod or gesture.
-- Characters engaged in activities (${activeChars.map(id => `${this.characters[id].name}: ${this.characterStates[id].currentActivity || 'conversing'}`).join(', ')}) may be less engaged in conversation.
+- Characters engaged in activities (${activeChars.map(id => {
+  return this.characterStates[id] ? 
+    `${this.characters[id].name}: ${this.characterStates[id].currentActivity || 'conversing'}` : 
+    `${this.characters[id].name}: conversing`;
+}).join(', ')}) may be less engaged in conversation.
 - Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
 - Limit verbose dialogue to characters who would actually be engaged based on context.
 
