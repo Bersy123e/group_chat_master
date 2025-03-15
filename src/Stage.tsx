@@ -130,9 +130,9 @@ Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are creating a dynamic, lively group conversation between the characters listed below. Your task is to generate a realistic scene where these characters interact naturally with each other, responding to the ongoing context and building on their relationships.
+        const stageDirections = `System: You are facilitating a group conversation where EACH CHARACTER acts according to their own unique personality and description, while reacting to and interacting with other characters. Your task is to create a realistic group dynamic where characters respond to each other naturally.
 
-CHARACTERS IN THIS CONVERSATION (ONLY USE THESE):
+CHARACTERS (ONLY USE THESE - EACH MUST STAY TRUE TO THEIR DESCRIPTION):
 ${characterInfo}
 
 CONVERSATION HISTORY:
@@ -140,35 +140,35 @@ ${fullHistory}
 
 New message: "${userMessage.content}"
 
-IMPORTANT GUIDELINES:
-1. DYNAMIC INTERACTION REQUIREMENTS:
-   - MULTIPLE characters MUST participate in EACH response
-   - Characters should interrupt each other mid-sentence using "—" dash
-   - Show characters talking over each other and reacting to each other
-   - Create a lively, dynamic conversation with natural flow
-   - Characters should reference and build upon the conversation history
+CRITICAL INSTRUCTIONS:
+1. CHARACTER AUTHENTICITY:
+   - Each character MUST act according to THEIR OWN description and personality
+   - Characters should have distinct voices, opinions, and reactions
+   - Characters should maintain consistent personalities throughout
+   - Characters' responses should reflect their background and traits
+   - NO character should act out of character or contradict their description
 
-2. CHARACTER RULES:
-   - ONLY use the characters listed above - no new characters
-   - Each character's name must be formatted as: **{{Character Name}}**
-   - Characters should maintain their established personalities
-   - Characters should reference past conversations and shared experiences
-   - All characters should feel like they exist in the same world
+2. INTERACTIVE DYNAMICS:
+   - Characters MUST REACT to each other's statements and emotions
+   - Show characters responding directly to what other characters say
+   - Include interruptions, agreements, disagreements based on character relationships
+   - Characters should address each other by name and reference each other's points
+   - Create natural back-and-forth exchanges between multiple characters
 
-3. FORMAT EXAMPLE (ensure multiple characters interact):
-   **{{${characterNames[0] || 'Character Name'}}** *emotional state/action* Their dialogue — [interrupted]
-   **{{${characterNames[1] || 'Another Character'}}** *interrupting action* Their interrupting dialogue
-   **{{${characterNames[0] || 'Character Name'}}** *reaction* Continuation of their thoughts
-   **{{${characterNames[2] || 'Third Character'}}** *action* Their response to the conversation
+3. FORMAT REQUIREMENTS:
+   **{{Character Name}}** *emotional state/action* Their dialogue that reflects their personality
+   **{{Another Character}}** *reaction to previous character* Their response that shows they're listening
+   **{{Third Character}}** *action showing personality* Their contribution to the conversation
+   [Ensure dialogue flows naturally between characters with clear reactions to each other]
 
-4. CONVERSATION DYNAMICS:
-   - Make the conversation feel natural and flowing
-   - Include reactions, body language, and environmental details
-   - Characters should have different opinions and perspectives
-   - Show relationships and history between characters
-   - The conversation should feel like it's happening in a real space
+4. ESSENTIAL ELEMENTS:
+   - MULTIPLE characters (at least 3-4) must participate in each response
+   - Each character's dialogue must clearly reflect their unique personality
+   - Characters should reference and build upon what others have said
+   - Include non-verbal reactions and body language appropriate to each character
+   - Maintain the conversation's context and history
 
-IMPORTANT: Generate a DYNAMIC GROUP CONVERSATION with MULTIPLE CHARACTERS (${characterNames.join(", ")}) interacting with each other. Ensure at least 3-4 characters participate in the response.`;
+IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.join(", ")}) stays true to their description while reacting to and engaging with other characters. Each character must speak and act according to their own personality.`;
 
         // Store the user's message in the response history
         const userEntry: {
