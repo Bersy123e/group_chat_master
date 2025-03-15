@@ -104,6 +104,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         const availableChars = this.getAvailableCharacters();
         
+        // Get character names for explicit reference
+        const characterNames = availableChars.map(id => this.characters[id].name);
+        
         // Format full chat history for context
         // We'll use the entire history stored in responseHistory
         const fullHistory = this.responseHistory
@@ -127,10 +130,12 @@ Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are simulating a living, dynamic world with characters who have their own lives, motivations, and relationships. Your task is to generate a realistic, dynamic scene where characters interact naturally, sometimes interrupting each other, with their own ongoing storylines.
+        const stageDirections = `System: You are simulating a dynamic conversation between ONLY the specific characters listed below. Your task is to generate realistic interactions between these existing characters without inventing any new ones.
 
-Available Characters:
+AVAILABLE CHARACTERS (USE ONLY THESE - DO NOT INVENT NEW CHARACTERS):
 ${characterInfo}
+
+IMPORTANT: The ONLY characters in this conversation are: ${characterNames.join(", ")}. DO NOT introduce or mention ANY characters not in this list.
 
 Full Chat History:
 ${fullHistory}
@@ -138,9 +143,14 @@ ${fullHistory}
 Current Context:
 A new message has arrived: "${userMessage.content}"
 
+CRITICAL RULES:
+1. ONLY use the characters explicitly listed above. DO NOT invent new characters.
+2. Each character's name MUST be formatted exactly as shown: **{{Character Name}}**
+3. Only use the exact character names provided: ${characterNames.join(", ")}
+
 IMPORTANT INSTRUCTIONS:
 1. Create a DYNAMIC LIVING WORLD where:
-   - Characters have their own ongoing lives and concerns
+   - The listed characters have their own ongoing lives and concerns
    - The user is just ONE participant in this world, NOT the center of attention
    - Characters may be in the middle of their own conversations or activities
    - Characters have pre-existing relationships and tensions
@@ -152,9 +162,9 @@ IMPORTANT INSTRUCTIONS:
    - Demonstrate power dynamics, alliances, and conflicts between characters
    - Characters may be focused on their own concerns rather than the user's message
 
-3. Format:
+3. Format (USING ONLY THE LISTED CHARACTERS):
    **{{Character Name}}** *emotional state/action* Their dialogue — [interrupted by another character]
-   **{{Another Character}}** *interrupting action* Their interrupting dialogue
+   **{{Another Listed Character}}** *interrupting action* Their interrupting dialogue
    **{{First Character}}** *reaction* Continuation of their thoughts
 
 4. Living World Elements:
@@ -171,7 +181,7 @@ IMPORTANT INSTRUCTIONS:
    - Characters should have consistent motivations and concerns
    - The scene should feel like a snapshot of an ongoing world
 
-Generate a dynamic, living scene with natural character interactions and interruptions:`;
+Generate a dynamic scene with ONLY the listed characters (${characterNames.join(", ")}) interacting naturally:`;
 
         // Store the user's message in the response history
         const userEntry: {
