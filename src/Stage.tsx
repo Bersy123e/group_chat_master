@@ -399,25 +399,10 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 const char = this.characters[id];
                 let description = `${char.name}:\n`;
                 
-                if (char.personality) {
-                    description += `Personality: ${char.personality}\n`;
-                }
-                
+                // Only include the description field as requested
                 if (char.description) {
-                    description += `Description: ${char.description}\n`;
+                    description += `${char.description}`;
                 }
-                
-                if (char.scenario) {
-                    description += `Scenario: ${char.scenario}\n`;
-                }
-                
-                if (char.example_dialogs) {
-                    description += `Example dialogue: ${char.example_dialogs}\n`;
-                }
-                
-                // Add current state information
-                description += `Current status: ${this.characterStates[id].currentActivity || 'conversing'}\n`;
-                description += `Current location: ${this.characterStates[id].location || 'main area'}\n`;
                 
                 return description;
             }).join("\n\n");
@@ -462,7 +447,7 @@ CRITICAL RULES:
 3. NEVER describe the user's actions, movements, or expressions. The user is not a character in your scene.
 4. CREATE ONLY ONE COMBINED NARRATIVE with ALL PRESENT CHARACTERS interacting together.
 5. ONLY USE THE EXACT CHARACTERS LISTED ABOVE. DO NOT invent or include any characters not explicitly listed.
-6. Each character should act according to their unique personality and description.
+6. Each character should act according to the description provided.
 7. STRICTLY ENFORCE ABSENCE: If a character is listed as not present, they MUST NOT appear in the scene AT ALL - no dialogue, no actions, no mentions of current activities.
 8. Characters may reference absent characters in past tense or wondering where they are, but absent characters CANNOT speak or act.
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
