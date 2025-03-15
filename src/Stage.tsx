@@ -582,6 +582,13 @@ ${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full his
 - MAINTAIN CONTINUITY with previous scenes and conversations
 - MAINTAIN CONSISTENT FORMATTING throughout the entire response
 
+RESPONSE FORMAT:
+- Use **{{Character Name}}** to indicate who is speaking or acting
+- Use *italics* for thoughts, actions, and descriptions (e.g., **{{Character}}** *walks slowly to the window*)
+- Use "quotes" for dialogue (e.g., **{{Character}}** "This is what I think about that.")
+- Descriptions of the environment and scene setting should be in *italics* without character attribution
+- CONSISTENTLY use this format throughout the entire response
+
 IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. NOT EVERY CHARACTER NEEDS TO SPEAK - some may just react briefly or remain silent based on their current activity and the context. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above. MAINTAIN CONSISTENT FORMATTING throughout.`;
 
         // Store the user's message in the response history
