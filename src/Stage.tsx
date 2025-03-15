@@ -68,18 +68,49 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         return Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
     }
 
+    private buildCharacterPrompt(
+        charId: string,
+        userMessage: Message,
+        recentHistory: string,
+        otherResponses: string[]
+    ): string {
+        const char = this.characters[charId];
+        let prompt = `You are ${char.name}.\n`;
+        
+        if (char.personality) {
+            prompt += `Your personality: ${char.personality}\n`;
+        }
+        if (char.description) {
+            prompt += `Your description: ${char.description}\n`;
+        }
+        if (char.scenario) {
+            prompt += `Current scenario: ${char.scenario}\n`;
+        }
+
+        if (recentHistory) {
+            prompt += `\nRecent chat history:\n${recentHistory}\n`;
+        }
+
+        prompt += `\nUser's message: ${userMessage.content}\n`;
+
+        if (otherResponses.length > 0) {
+            prompt += `\nOther characters have already responded:\n${otherResponses.join("\n")}\n`;
+        }
+
+        prompt += `\nRespond naturally in character, considering the context and other characters' responses.`;
+        return prompt;
+    }
+
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         const availableChars = this.getAvailableCharacters();
         
         // Get recent history for context
-        const recentHistory = this.responseHistory.slice(-3);
-        const contextInfo = recentHistory.length > 0 
-            ? recentHistory.map(entry => 
-                `Previous interaction: ${entry.responders.map(id => this.characters[id].name).join(" and ")} ${entry.messageContent ? `said "${entry.messageContent}"` : ''}`
-            ).join("\n")
-            : "";
+        const recentHistory = this.responseHistory.slice(-3)
+            .map(entry => 
+                `${entry.responders.map(id => this.characters[id].name).join(" and ")}: ${entry.messageContent || ''}`
+            ).join("\n");
 
-        // Format character information
+        // Format character information and their potential responses
         const characterInfo = availableChars
             .map(id => {
                 const char = this.characters[id];
@@ -88,42 +119,51 @@ ${char.personality || char.description}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: Group conversation where characters interact naturally based on context, history, and current situation.
+        // Determine who should respond first (mentioned characters get priority)
+        const mentionedChars = availableChars.filter(id => 
+            userMessage.content?.toLowerCase().includes(this.characters[id].name.toLowerCase())
+        );
+
+        const respondingChars = mentionedChars.length > 0 ? mentionedChars : availableChars;
+
+        const stageDirections = `System: Group conversation where characters interact naturally based on context and relationships.
 
 Recent History:
-${contextInfo}
+${recentHistory}
 
 Available Characters:
 ${characterInfo}
 
 Rules:
 1. Response Order:
-   - Characters respond based on context and relevance
-   - Direct mentions and character expertise influence who responds
-   - Natural conversation flow determines participation
+   - Characters mentioned by name should respond first
+   - Other characters may join based on their personality and the context
+   - Each character should react naturally to both the user and other characters
 
 2. Group Dynamics:
-   - Characters interact based on their personalities and relationships
-   - Responses should feel natural and contextually appropriate
-   - Characters may choose to observe or participate based on the situation
+   - Stay true to each character's personality and background
+   - Consider relationships and previous interactions
+   - React to both the user's message and other characters' responses
 
 Format:
 **{{char}}** *action/emotion* Speaks and interacts with others
 [Each character response starts with **{{their name}}**]
+
+Responding characters: ${respondingChars.map(id => this.characters[id].name).join(", ")}
 
 Write a group response following the rules above:`;
 
         return {
             stageDirections,
             messageState: { 
-                lastResponders: availableChars,
+                lastResponders: respondingChars,
                 activeCharacters: new Set(availableChars)
             },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
                     { 
-                        responders: availableChars,
+                        responders: respondingChars,
                         messageContent: userMessage.content,
                         timestamp: Date.now()
                     }
