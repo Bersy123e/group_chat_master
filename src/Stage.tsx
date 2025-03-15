@@ -49,7 +49,7 @@ type ChatStateType = {
         messageContent?: string;
         timestamp: number;
     }[];
-    characterStatus: { [key: string]: { state: "active" | "away" | "busy"; activity?: string } };
+    characterStatus: { [key: string]: { state: "active" | "away" | "busy" } };
 };
 
 type ActionCategory = "explore" | "interact" | "rest" | "work";
@@ -76,40 +76,25 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          ***/
         super(data);
         
-        // Validate and apply configuration
-        const defaultConfig = {
-            maxActive: 5,
-            activityChance: 50
-        };
-
         this.config = {
-            ...defaultConfig,
-            ...(data.config || {})
+            maxActive: data.config?.maxActive || 5,
+            activityChance: data.config?.activityChance || 50
         };
 
-        // Ensure config values are within valid ranges
-        this.config.maxActive = Math.max(2, Math.min(15, this.config.maxActive));
-        this.config.activityChance = Math.max(10, Math.min(100, this.config.activityChance));
-
-        // Initialize state
         this.characters = data.characters;
         this.responseHistory = data.chatState?.responseHistory || [];
         this.characterStatus = data.chatState?.characterStatus || {};
         this.chat = { history: [] };
 
-        // Initialize character statuses
         Object.keys(this.characters).forEach(id => {
             if (!this.characterStatus[id]) {
                 this.characterStatus[id] = { state: "active" };
             }
         });
-
-        // Log configuration for debugging
-        console.debug('Stage initialized with config:', this.config);
     }
 
     async setState(state: MessageStateType): Promise<void> {
-        // No state updates needed as we track everything in chatState
+        // No state updates needed
     }
 
     private selectSceneParticipants(message: Message): string[] {
@@ -137,49 +122,20 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const participants = [mainResponder];
         const remainingChars = availableChars.filter(id => id !== mainResponder);
         
-        // Calculate initial probability based on config
         let currentProb = this.config.activityChance / 100;
-        console.debug('Initial join probability:', currentProb);
 
-        // Add additional participants based on config
         while (
             participants.length < this.config.maxActive &&
             remainingChars.length > 0 &&
             Math.random() < currentProb
         ) {
             const nextChar = remainingChars[Math.floor(Math.random() * remainingChars.length)];
-            const desc = this.characters[nextChar].description?.toLowerCase() || "";
-            const pers = this.characters[nextChar].personality?.toLowerCase() || "";
-            const leaveChance = (desc.includes("restless") || pers.includes("independent")) ? 0.15 : 0.05;
-
-            if (Math.random() < leaveChance && this.characterStatus[nextChar].state === "active") {
-                this.characterStatus[nextChar].state = Math.random() < 0.5 ? "away" : "busy";
-                console.debug(`${this.characters[nextChar].name} left the scene`);
-            } else {
-                participants.push(nextChar);
-                console.debug(`${this.characters[nextChar].name} joined the scene`);
-            }
+            participants.push(nextChar);
             remainingChars.splice(remainingChars.indexOf(nextChar), 1);
-            
-            // Decrease probability for next participant based on config
             currentProb *= this.config.activityChance / 100;
-            console.debug('Updated join probability:', currentProb);
         }
 
-        // Возвращение
-        availableChars.filter(id => this.characterStatus[id].state !== "active").forEach(id => {
-            const desc = this.characters[id].description?.toLowerCase() || "";
-            const returnChance = desc.includes("loyal") ? 0.1 : 0.03;
-            if (Math.random() < returnChance) {
-                this.characterStatus[id].state = "active";
-                console.debug(`${this.characters[id].name} returned to active state`);
-            }
-        });
-
-        const activeParticipants = participants.filter(id => this.characterStatus[id].state === "active");
-        console.debug('Final participants:', activeParticipants.map(id => this.characters[id].name));
-        
-        return activeParticipants;
+        return participants;
     }
 
     async load(): Promise<Partial<LoadResponse<InitStateType, ChatStateType, MessageStateType>>> {
@@ -221,52 +177,34 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             };
         }
 
-        // История
         const fullHistory = this.chat.history.map((msg: Message) => 
             `${msg.content || ""}`
         ).join("\n");
 
-        // Персонажи
         const characterInfo = Object.keys(this.characters)
             .filter(id => !this.characters[id].isRemoved)
             .map(id => {
                 const char = this.characters[id];
-                const status = this.characterStatus[id];
-                return `${char.name}:\nTraits: ${char.personality || "None"}\nDescription: ${char.description || "No details"}\nScenario: ${char.scenario || "Unspecified"}\nStatus: ${status.state}`;
+                return `${char.name}:\nTraits: ${char.personality || "None"}\nDescription: ${char.description || "No details"}\nScenario: ${char.scenario || "Unspecified"}`;
             }).join("\n\n");
 
-        // Обработка ввода
-        const modifiedMessage = participants.some(id => userMessage.content?.toLowerCase().includes(this.characters[id].name.toLowerCase()))
-            ? `[${participants.map(id => this.characters[id].name).join(", ")}]: ${userMessage.content}`
-            : userMessage.content;
+        const stageDirections = `System: Create a dynamic scene with natural character interactions.
 
-        const stageDirections = `System: Weave a living, breathing world scene that unfolds naturally.
+Chat History:
+${fullHistory || "The journey begins."}
 
-Chat History (first message sets the world):
-${fullHistory || "The journey starts here."}
-
-Characters and Their Status:
+Characters:
 ${characterInfo}
 
-Rules for Scene Generation:
-1. **User's Call**: At least one active character (${this.characters[participants[0]].name}) reacts to "${userMessage.content}" if it aligns with their traits, scenario, or status; otherwise, they may ignore it.
-2. **World Alive**:
-   - Up to ${this.config.maxActive} characters can be active, with a ${this.config.activityChance}% chance for each additional one to join (decreasing each step).
-   - Not all must speak; some act silently based on their personality, scenario, or status.
-   - Characters pursue their own paths, shaped by traits and past events, even if unrelated to the user.
-3. **Natural Unfolding**:
-   - Blend reactions to the user with independent actions or interactions among characters.
-   - Characters may leave or return based on their status; those "away" or "busy" remain silent.
-   - Reflect personality (e.g., "stubborn" resists, "curious" explores) and scenario in behavior.
-4. **Format**: Merge narrative and dialogue:
-   - **{{Name}}** *action/emotion* "Dialogue" (if speaking)
-   - *Name does something* (if silent)
+Rules:
+1. Characters should interact naturally based on their traits and the situation
+2. Include both dialogue and actions
+3. Format: **{{Name}}** *action/emotion* "Dialogue" (if speaking)
 
-Craft a scene that flows like a chapter, tied to the history and characters' lives:`;
+Craft a scene that flows naturally:`;
 
         return {
             stageDirections,
-            modifiedMessage,
             messageState: { 
                 lastResponders: participants,
                 activeCharacters: new Set(Object.keys(this.characters).filter(id => !this.characters[id].isRemoved))
@@ -287,7 +225,6 @@ Craft a scene that flows like a chapter, tied to the history and characters' liv
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
 
-            // Update pattern to match Chub.ai format
             const charPattern = /\*\*{{([^}]+)}}\*\*/g;
             let match;
             while ((match = charPattern.exec(botMessage.content || "")) !== null) {
@@ -298,30 +235,14 @@ Craft a scene that flows like a chapter, tied to the history and characters' liv
             lastEntry.responders = Array.from(participants);
         }
 
-        // Уведомления об уходе/возвращении
-        const statusUpdates = Object.entries(this.characterStatus)
-            .filter(([id, status]) => status.state !== "active" && !participants.has(id))
-            .map(([id, status]) => `**{{${this.characters[id].name}}}** is ${status.state}.`)
-            .join(" ");
-        const systemMessage = statusUpdates ? `System: ${statusUpdates}` : null;
-
         return {
             modifiedMessage: botMessage.content,
-            systemMessage,
             error: null,
             chatState: { responseHistory: this.responseHistory, characterStatus: this.characterStatus }
         };
     }
 
     render(): ReactElement {
-        const statusList = Object.entries(this.characterStatus).map(([id, status]) => (
-            <li key={id}>{this.characters[id].name}: {status.state}</li>
-        ));
-        return (
-            <div style={{ padding: "10px", fontSize: "14px" }}>
-                <h3>World Status</h3>
-                <ul>{statusList}</ul>
-            </div>
-        );
+        return <></>;
     }
 }
