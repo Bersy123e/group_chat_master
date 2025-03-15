@@ -343,10 +343,10 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 
         const stageDirections = `System: You are creating a UNIFIED DYNAMIC SCENE with natural interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in a single flowing narrative.
 
-CHARACTERS IN THE SCENE:
+CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
 
-${absentCharacters.length > 0 ? `CHARACTERS NOT PRESENT: ${absentCharacters.join(', ')}` : ''}
+${absentCharacters.length > 0 ? `CHARACTERS NOT PRESENT (DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharacters.join(', ')}` : ''}
 
 CONVERSATION HISTORY:
 ${fullHistory}
@@ -357,10 +357,17 @@ CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
 2. NEVER use **{{User}}** or any variation to make the user speak. The user speaks for themselves only.
 3. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
-4. Each character should act according to their unique personality and description.
-5. DO NOT include absent characters in the dialogue - they are not present in the scene.
-6. Characters may reference absent characters but absent characters CANNOT speak or act.
-7. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
+4. ONLY USE THE EXACT CHARACTERS LISTED ABOVE. DO NOT invent or include any characters not explicitly listed.
+5. Each character should act according to their unique personality and description.
+6. DO NOT include absent characters in the dialogue - they are not present in the scene.
+7. Characters may reference absent characters but absent characters CANNOT speak or act.
+8. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
+
+STRICT CHARACTER USAGE:
+- ONLY use these exact characters in your response: ${characterNames.join(", ")}
+- DO NOT create new characters or mention characters not in the list above
+- DO NOT use generic characters like "someone", "a man", "a woman", etc.
+- If you need background characters, refer to them as "people" or "others" without giving them dialogue
 
 CREATING A UNIFIED DYNAMIC SCENE:
 - Create a SINGLE FLUID SCENE rather than separate character responses
@@ -423,7 +430,7 @@ Example 3 - Reactions and environment:
 
 **{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
 
-IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response.`;
+IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where ONLY the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
 
         // Store the user's message in the response history
         const userEntry: {
