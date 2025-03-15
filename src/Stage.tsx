@@ -104,36 +104,44 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         const availableChars = this.getAvailableCharacters();
         
-        // Get recent history for context
-        const recentHistory = this.responseHistory.slice(-5)
-            .map(entry => entry.messageContent || '')
-            .join("\n");
+        // Format full chat history for context
+        // We'll use the entire history stored in responseHistory
+        const fullHistory = this.responseHistory
+            .map(entry => {
+                if (entry.responders.length === 0) {
+                    return `User: ${entry.messageContent || ''}`;
+                } else {
+                    return entry.messageContent || '';
+                }
+            })
+            .filter(msg => msg.trim() !== '')
+            .join("\n\n");
 
-        // Format character information
+        // Format character information with detailed descriptions
         const characterInfo = availableChars
             .map(id => {
                 const char = this.characters[id];
                 return `${char.name}:
-${char.personality || ''}
-${char.description || ''}
+Personality: ${char.personality || 'Not specified'}
+Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are managing a group chat conversation. Generate a natural flowing dialogue between the characters in response to the user's message.
+        const stageDirections = `System: You are managing a group chat conversation. Generate a natural flowing dialogue between ALL available characters in response to the user's message.
 
 Available Characters:
 ${characterInfo}
 
-Recent Chat History:
-${recentHistory}
+Full Chat History:
+${fullHistory}
 
 Current Context:
 User's message: "${userMessage.content}"
 
 Instructions:
-1. Create a natural flowing group conversation where characters:
-   - Interact with each other naturally
-   - React to both the user's message and other characters' responses
+1. Create a natural flowing group conversation where ALL characters:
+   - Interact with each other naturally in a SINGLE COMBINED RESPONSE
+   - React to both the user's message and other characters' statements
    - Stay true to their personalities and relationships
    - Can agree, disagree, or build upon each other's statements
 
@@ -142,13 +150,25 @@ Instructions:
    [Make sure responses flow naturally as one continuous group conversation]
 
 3. Guidelines:
+   - IMPORTANT: This is NOT a turn-based conversation. All characters should interact in ONE COMBINED RESPONSE.
    - Characters should respond based on their personality and the context
    - Include natural interactions, reactions, and dynamics between characters
-   - Not every character needs to speak in every response
-   - Let characters reference and react to each other's statements
+   - Not every character needs to speak in every response, but ensure most relevant characters participate
+   - Let characters reference and react to each other's statements in real-time
    - Maintain consistent character voices and relationships
 
 Generate a group conversation response following these guidelines:`;
+
+        // Store the user's message in the response history
+        const userEntry: {
+            responders: string[];
+            messageContent?: string;
+            timestamp: number;
+        } = { 
+            responders: [],  // Empty array indicates user message
+            messageContent: userMessage.content,
+            timestamp: Date.now()
+        };
 
         return {
             stageDirections,
@@ -159,11 +179,7 @@ Generate a group conversation response following these guidelines:`;
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
-                    { 
-                        responders: availableChars,
-                        messageContent: userMessage.content,
-                        timestamp: Date.now()
-                    }
+                    userEntry
                 ]
             }
         };
@@ -200,34 +216,44 @@ Generate a group conversation response following these guidelines:`;
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        if (this.responseHistory.length > 0) {
-            const lastEntry = this.responseHistory[this.responseHistory.length - 1];
-            lastEntry.messageContent = botMessage.content;
+        // Store the bot's response in the response history
+        const botEntry: {
+            responders: string[];
+            messageContent?: string;
+            timestamp: number;
+        } = { 
+            responders: [],  // We'll extract participants below
+            messageContent: botMessage.content,
+            timestamp: Date.now()
+        };
 
-            // Extract all participating characters
-            const charPattern = /\*\*{{([^}]+)}}\*\*/g;
-            const participants = new Set<string>();
-            let match;
-            
-            while ((match = charPattern.exec(botMessage.content)) !== null) {
-                const charName = match[1];
-                const charId = Object.keys(this.characters)
-                    .find(id => this.characters[id].name === charName);
-                if (charId) {
-                    participants.add(charId);
-                }
+        // Extract all participating characters
+        const charPattern = /\*\*{{([^}]+)}}\*\*/g;
+        const participants = new Set<string>();
+        let match;
+        
+        while ((match = charPattern.exec(botMessage.content)) !== null) {
+            const charName = match[1];
+            const charId = Object.keys(this.characters)
+                .find(id => this.characters[id].name === charName);
+            if (charId) {
+                participants.add(charId);
             }
-
-            // Update responders with actual participants
-            lastEntry.responders = Array.from(participants);
         }
+
+        // Update responders with actual participants
+        botEntry.responders = Array.from(participants);
+
+        // Add the bot response to history
+        const updatedHistory = [...this.responseHistory, botEntry];
+        this.responseHistory = updatedHistory;
 
         return {
             modifiedMessage: botMessage.content,
             error: null,
             systemMessage: null,
             chatState: {
-                responseHistory: this.responseHistory
+                responseHistory: updatedHistory
             }
         };
     }
