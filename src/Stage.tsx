@@ -17,14 +17,6 @@ type MessageStateType = {
 };
 
 /***
- The type of the stage-specific configuration of this stage.
-
- @description This is for things you want people to be able to configure,
-  like background color.
- ***/
-type ConfigType = Record<string, never>; // Empty config type
-
-/***
  The type that this stage persists chat initialization state in.
  If there is any 'constant once initialized' static state unique to a chat,
  like procedurally generated terrain that is only created ONCE and ONLY ONCE per chat,
@@ -53,11 +45,11 @@ type ChatStateType = {
  If you want to rename it, be sure to modify App.js as well.
  @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/stage.ts
  ***/
-export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, ConfigType> {
+export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, null> {
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
 
-    constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, ConfigType>) {
+    constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, null>) {
         /***
          This is the first thing called in the stage,
          to create an instance of it.
@@ -106,14 +98,14 @@ ${characterInfo}
 
 Rules:
 1. Response Order:
-   - If a character is directly mentioned, they should respond first
-   - Other characters may join based on their personality and the context
-   - Characters with relevant experience or knowledge should be more likely to participate
+   - Characters respond based on context and relevance
+   - Direct mentions and character expertise influence who responds
+   - Natural conversation flow determines participation
 
 2. Group Dynamics:
-   - Characters should interact naturally based on their personalities and relationships
-   - Not every character needs to respond to every message
-   - Consider the flow of conversation and relevance when deciding who participates
+   - Characters interact based on their personalities and relationships
+   - Responses should feel natural and contextually appropriate
+   - Characters may choose to observe or participate based on the situation
 
 Format:
 **{{char}}** *action/emotion* Speaks and interacts with others
