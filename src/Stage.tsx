@@ -130,58 +130,45 @@ Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are simulating a dynamic conversation between ONLY the specific characters listed below. Your task is to generate realistic interactions between these existing characters without inventing any new ones.
+        const stageDirections = `System: You are creating a dynamic, lively group conversation between the characters listed below. Your task is to generate a realistic scene where these characters interact naturally with each other, responding to the ongoing context and building on their relationships.
 
-AVAILABLE CHARACTERS (USE ONLY THESE - DO NOT INVENT NEW CHARACTERS):
+CHARACTERS IN THIS CONVERSATION (ONLY USE THESE):
 ${characterInfo}
 
-IMPORTANT: The ONLY characters in this conversation are: ${characterNames.join(", ")}. DO NOT introduce or mention ANY characters not in this list.
-
-Full Chat History:
+CONVERSATION HISTORY:
 ${fullHistory}
 
-Current Context:
-A new message has arrived: "${userMessage.content}"
+New message: "${userMessage.content}"
 
-CRITICAL RULES:
-1. ONLY use the characters explicitly listed above. DO NOT invent new characters.
-2. Each character's name MUST be formatted exactly as shown: **{{Character Name}}**
-3. Only use the exact character names provided: ${characterNames.join(", ")}
+IMPORTANT GUIDELINES:
+1. DYNAMIC INTERACTION REQUIREMENTS:
+   - MULTIPLE characters MUST participate in EACH response
+   - Characters should interrupt each other mid-sentence using "—" dash
+   - Show characters talking over each other and reacting to each other
+   - Create a lively, dynamic conversation with natural flow
+   - Characters should reference and build upon the conversation history
 
-IMPORTANT INSTRUCTIONS:
-1. Create a DYNAMIC LIVING WORLD where:
-   - The listed characters have their own ongoing lives and concerns
-   - The user is just ONE participant in this world, NOT the center of attention
-   - Characters may be in the middle of their own conversations or activities
-   - Characters have pre-existing relationships and tensions
+2. CHARACTER RULES:
+   - ONLY use the characters listed above - no new characters
+   - Each character's name must be formatted as: **{{Character Name}}**
+   - Characters should maintain their established personalities
+   - Characters should reference past conversations and shared experiences
+   - All characters should feel like they exist in the same world
 
-2. Dynamic Interaction Guidelines:
-   - Characters can and SHOULD INTERRUPT EACH OTHER mid-sentence using "—" dash
-   - Show overlapping dialogue with characters talking over each other
-   - Include mid-sentence interruptions, reactions, and interjections
-   - Demonstrate power dynamics, alliances, and conflicts between characters
-   - Characters may be focused on their own concerns rather than the user's message
+3. FORMAT EXAMPLE (ensure multiple characters interact):
+   **{{${characterNames[0] || 'Character Name'}}** *emotional state/action* Their dialogue — [interrupted]
+   **{{${characterNames[1] || 'Another Character'}}** *interrupting action* Their interrupting dialogue
+   **{{${characterNames[0] || 'Character Name'}}** *reaction* Continuation of their thoughts
+   **{{${characterNames[2] || 'Third Character'}}** *action* Their response to the conversation
 
-3. Format (USING ONLY THE LISTED CHARACTERS):
-   **{{Character Name}}** *emotional state/action* Their dialogue — [interrupted by another character]
-   **{{Another Listed Character}}** *interrupting action* Their interrupting dialogue
-   **{{First Character}}** *reaction* Continuation of their thoughts
+4. CONVERSATION DYNAMICS:
+   - Make the conversation feel natural and flowing
+   - Include reactions, body language, and environmental details
+   - Characters should have different opinions and perspectives
+   - Show relationships and history between characters
+   - The conversation should feel like it's happening in a real space
 
-4. Living World Elements:
-   - Characters should reference ongoing events in their lives
-   - Include background activities and environmental details
-   - Characters may be distracted by their own thoughts or activities
-   - Allow for natural pauses, overlaps, and conversational messiness
-   - Characters might talk over each other or finish each other's sentences
-
-5. Realism Guidelines:
-   - This is NOT a turn-based conversation
-   - Dialogue should feel organic, messy, and realistic
-   - Include subtle reactions, body language, and environmental interactions
-   - Characters should have consistent motivations and concerns
-   - The scene should feel like a snapshot of an ongoing world
-
-Generate a dynamic scene with ONLY the listed characters (${characterNames.join(", ")}) interacting naturally:`;
+IMPORTANT: Generate a DYNAMIC GROUP CONVERSATION with MULTIPLE CHARACTERS (${characterNames.join(", ")}) interacting with each other. Ensure at least 3-4 characters participate in the response.`;
 
         // Store the user's message in the response history
         const userEntry: {
