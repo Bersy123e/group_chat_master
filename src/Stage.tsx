@@ -49,7 +49,6 @@ type ChatStateType = {
         messageContent?: string;
         timestamp: number;
     }[];
-    characterStatus: { [key: string]: { state: "active" | "away" | "busy"; activity?: string } };
 };
 
 type ActionCategory = "explore" | "interact" | "rest" | "work";
@@ -61,7 +60,6 @@ type ActionCategory = "explore" | "interact" | "rest" | "work";
  ***/
 export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, ConfigType> {
     private responseHistory: ChatStateType['responseHistory'] = [];
-    private characterStatus: ChatStateType['characterStatus'] = {};
     private characters: { [key: string]: Character };
     private config: ConfigType;
     protected chat: { history: Message[] };
@@ -91,85 +89,92 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 
         this.characters = data.characters;
         this.responseHistory = data.chatState?.responseHistory || [];
-        this.characterStatus = data.chatState?.characterStatus || {};
         this.chat = { history: [] };
-
-        Object.keys(this.characters).forEach(id => {
-            if (!this.characterStatus[id]) {
-                this.characterStatus[id] = { state: "active" };
-            }
-        });
 
         console.debug('Stage initialized with config:', this.config);
     }
 
-    async setState(state: MessageStateType): Promise<void> {
-        // No state updates needed as we track everything in chatState
+    private calculateRelevanceScore(charId: string, message: Message): number {
+        const char = this.characters[charId];
+        const messageContent = message.content?.toLowerCase() || "";
+        const charDesc = char.description?.toLowerCase() || "";
+        const charPers = char.personality?.toLowerCase() || "";
+        let score = 0;
+
+        // Direct mention bonus
+        if (messageContent.includes(char.name.toLowerCase())) {
+            score += 5;
+        }
+
+        // Context matching
+        const messageWords = new Set(messageContent.split(/\s+/));
+        const descWords = new Set(charDesc.split(/\s+/));
+        const persWords = new Set(charPers.split(/\s+/));
+        
+        descWords.forEach(word => {
+            if (messageWords.has(word)) score += 0.5;
+        });
+        
+        persWords.forEach(word => {
+            if (messageWords.has(word)) score += 0.5;
+        });
+
+        // Recent participation adjustment
+        const recentResponses = this.responseHistory.slice(-3);
+        const participationCount = recentResponses.filter(h => 
+            h.responders.includes(charId)
+        ).length;
+        score -= participationCount * 0.5;
+
+        // Add randomness to prevent repetitive patterns
+        score += Math.random() * 2;
+
+        return score;
     }
 
     private selectSceneParticipants(message: Message): string[] {
         const availableChars = Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
         if (availableChars.length === 0) return [];
 
-        let mainResponder = availableChars.find(id => 
-            message.content?.toLowerCase().includes(this.characters[id].name.toLowerCase()) && 
-            this.characterStatus[id].state === "active"
-        );
-        if (!mainResponder) {
-            const activeChars = availableChars.filter(id => this.characterStatus[id].state === "active");
-            const scores = activeChars.map(id => {
-                const desc = this.characters[id].description?.toLowerCase() || "";
-                const pers = this.characters[id].personality?.toLowerCase() || "";
-                let score = (desc.includes("talkative") || pers.includes("outgoing")) ? 1 : 0;
-                if (desc.includes("shy") || pers.includes("quiet")) score -= 0.5;
-                score += Math.random();
-                return [id, score] as [string, number];
-            });
-            mainResponder = scores.sort((a, b) => b[1] - a[1])[0]?.[0] || availableChars[0];
-        }
+        // Score all characters based on relevance to the message
+        const scores = availableChars.map(id => ({
+            id,
+            score: this.calculateRelevanceScore(id, message)
+        }));
 
-        const participants = [mainResponder];
-        const remainingChars = availableChars.filter(id => id !== mainResponder);
-        
+        // Sort by score and select main responder
+        scores.sort((a, b) => b.score - a.score);
+        const participants = [scores[0].id];
+
+        // Select additional participants based on relevance and probability
+        let remainingChars = scores.slice(1);
         let currentProb = this.config.activityChance / 100;
-        console.debug('Initial join probability:', currentProb);
 
         while (
             participants.length < this.config.maxActive &&
             remainingChars.length > 0 &&
             Math.random() < currentProb
         ) {
-            const nextChar = remainingChars[Math.floor(Math.random() * remainingChars.length)];
-            const desc = this.characters[nextChar].description?.toLowerCase() || "";
-            const pers = this.characters[nextChar].personality?.toLowerCase() || "";
-            const leaveChance = (desc.includes("restless") || pers.includes("independent")) ? 0.15 : 0.05;
+            // Weight selection by score
+            const totalScore = remainingChars.reduce((sum, char) => sum + char.score, 0);
+            let random = Math.random() * totalScore;
+            let selectedIndex = 0;
 
-            if (Math.random() < leaveChance && this.characterStatus[nextChar].state === "active") {
-                this.characterStatus[nextChar].state = Math.random() < 0.5 ? "away" : "busy";
-                console.debug(`${this.characters[nextChar].name} left the scene`);
-            } else {
-                participants.push(nextChar);
-                console.debug(`${this.characters[nextChar].name} joined the scene`);
+            for (let i = 0; i < remainingChars.length; i++) {
+                random -= remainingChars[i].score;
+                if (random <= 0) {
+                    selectedIndex = i;
+                    break;
+                }
             }
-            remainingChars.splice(remainingChars.indexOf(nextChar), 1);
-            
-            currentProb *= this.config.activityChance / 100;
-            console.debug('Updated join probability:', currentProb);
+
+            participants.push(remainingChars[selectedIndex].id);
+            remainingChars.splice(selectedIndex, 1);
+            currentProb *= 0.7; // Decrease probability for each additional participant
         }
 
-        availableChars.filter(id => this.characterStatus[id].state !== "active").forEach(id => {
-            const desc = this.characters[id].description?.toLowerCase() || "";
-            const returnChance = desc.includes("loyal") ? 0.1 : 0.03;
-            if (Math.random() < returnChance) {
-                this.characterStatus[id].state = "active";
-                console.debug(`${this.characters[id].name} returned to active state`);
-            }
-        });
-
-        const activeParticipants = participants.filter(id => this.characterStatus[id].state === "active");
-        console.debug('Final participants:', activeParticipants.map(id => this.characters[id].name));
-        
-        return activeParticipants;
+        console.debug('Selected participants:', participants.map(id => this.characters[id].name));
+        return participants;
     }
 
     async load(): Promise<Partial<LoadResponse<InitStateType, ChatStateType, MessageStateType>>> {
@@ -197,7 +202,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
              briefly at the top of the screen, if any. ***/
             error: null,
             initState: null,
-            chatState: { responseHistory: this.responseHistory, characterStatus: this.characterStatus }
+            chatState: { responseHistory: this.responseHistory }
         };
     }
 
@@ -207,95 +212,101 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             return {
                 stageDirections: "System: The world is still; no one remains nearby.",
                 messageState: { lastResponders: [], activeCharacters: new Set() },
-                chatState: { responseHistory: this.responseHistory, characterStatus: this.characterStatus }
+                chatState: { responseHistory: this.responseHistory }
             };
         }
 
-        const fullHistory = this.chat.history.map((msg: Message) => 
-            `${msg.content || ""}`
+        const recentHistory = this.responseHistory.slice(-3).map(entry => 
+            `${entry.responders.map(id => this.characters[id].name).join(" and ")} ${entry.messageContent ? `said "${entry.messageContent}"` : 'interacted'}`
         ).join("\n");
 
-        const characterInfo = Object.keys(this.characters)
-            .filter(id => !this.characters[id].isRemoved)
-            .map(id => {
-                const char = this.characters[id];
-                const status = this.characterStatus[id];
-                return `${char.name}:\nTraits: ${char.personality || "None"}\nDescription: ${char.description || "No details"}\nScenario: ${char.scenario || "Unspecified"}\nStatus: ${status.state}`;
-            }).join("\n\n");
+        const characterInfo = participants.map(id => {
+            const char = this.characters[id];
+            return `${char.name}:\nTraits: ${char.personality || "None"}\nDescription: ${char.description || "No details"}\nScenario: ${char.scenario || "Unspecified"}`;
+        }).join("\n\n");
 
-        const modifiedMessage = participants.some(id => userMessage.content?.toLowerCase().includes(this.characters[id].name.toLowerCase()))
-            ? `[${participants.map(id => this.characters[id].name).join(", ")}]: ${userMessage.content}`
-            : userMessage.content;
+        const stageDirections = `System: Natural group conversation where characters interact based on context and personality.
 
-        const stageDirections = `System: Weave a living, breathing world scene that unfolds naturally.
+Recent History:
+${recentHistory}
 
-Chat History (first message sets the world):
-${fullHistory || "The journey starts here."}
-
-Characters and Their Status:
+Active Characters:
 ${characterInfo}
 
-Rules for Scene Generation:
-1. **User's Call**: At least one active character (${this.characters[participants[0]].name}) reacts to "${userMessage.content}" if it aligns with their traits, scenario, or status; otherwise, they may ignore it.
-2. **World Alive**:
-   - Up to ${this.config.maxActive} characters can be active, with a ${this.config.activityChance}% chance for each additional one to join (decreasing each step).
-   - Not all must speak; some act silently based on their personality, scenario, or status.
-   - Characters pursue their own paths, shaped by traits and past events, even if unrelated to the user.
-3. **Natural Unfolding**:
-   - Blend reactions to the user with independent actions or interactions among characters.
-   - Characters may leave or return based on their status; those "away" or "busy" remain silent.
-   - Reflect personality (e.g., "stubborn" resists, "curious" explores) and scenario in behavior.
-4. **Format**: Merge narrative and dialogue:
-   - **{{Name}}** *action/emotion* "Dialogue" (if speaking)
-   - *Name does something* (if silent)
+Rules:
+1. Response Order:
+   - ${this.characters[participants[0]].name} leads the response as most relevant
+   - Others join naturally based on context and personality
+   
+2. Group Dynamics:
+   - ${participants.length} characters are participating
+   - Each character should act according to their traits and scenario
+   - Maintain natural conversation flow and relationships
+   - Characters can agree, disagree, or have their own perspectives
 
-Craft a scene that flows like a chapter, tied to the history and characters' lives:`;
+Format:
+**{{Name}}** *action/emotion* "Dialogue"
+[Each character's response should reflect their unique personality]`;
 
         return {
             stageDirections,
-            modifiedMessage,
             messageState: { 
                 lastResponders: participants,
-                activeCharacters: new Set(Object.keys(this.characters).filter(id => !this.characters[id].isRemoved))
+                activeCharacters: new Set(participants)
             },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
-                    { responders: participants, messageContent: userMessage.content, timestamp: Date.now() }
-                ],
-                characterStatus: this.characterStatus
+                    { 
+                        responders: participants,
+                        messageContent: userMessage.content,
+                        timestamp: Date.now()
+                    }
+                ]
             }
         };
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        const participants = new Set<string>();
         if (this.responseHistory.length > 0) {
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
 
+            // Extract all participating characters with the new format
             const charPattern = /\*\*{{([^}]+)}}\*\*/g;
+            const participants = new Set<string>();
             let match;
-            while ((match = charPattern.exec(botMessage.content || "")) !== null) {
+            
+            while ((match = charPattern.exec(botMessage.content)) !== null) {
                 const charName = match[1];
-                const charId = Object.keys(this.characters).find(id => this.characters[id].name === charName);
-                if (charId) participants.add(charId);
+                const charId = Object.keys(this.characters)
+                    .find(id => this.characters[id].name === charName);
+                if (charId) {
+                    participants.add(charId);
+                }
             }
+
+            // Update responders with actual participants
             lastEntry.responders = Array.from(participants);
         }
 
-        const statusUpdates = Object.entries(this.characterStatus)
-            .filter(([id, status]) => status.state !== "active" && !participants.has(id))
-            .map(([id, status]) => `**{{${this.characters[id].name}}}** is ${status.state}.`)
-            .join(" ");
-        const systemMessage = statusUpdates ? `System: ${statusUpdates}` : null;
-
         return {
             modifiedMessage: botMessage.content,
-            systemMessage,
             error: null,
-            chatState: { responseHistory: this.responseHistory, characterStatus: this.characterStatus }
+            systemMessage: null,
+            chatState: {
+                responseHistory: this.responseHistory
+            }
         };
+    }
+
+    async setState(state: MessageStateType): Promise<void> {
+        if (state?.lastResponders) {
+            this.responseHistory.push({ 
+                responders: state.lastResponders,
+                timestamp: Date.now()
+            });
+        }
     }
 
     render(): ReactElement {
