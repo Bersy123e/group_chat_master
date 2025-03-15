@@ -70,17 +70,7 @@ state_schema:
           timestamp:
             type: "number"
         required: ["responders", "timestamp"]
-    characterStatus:
-      type: "object"
-      description: "Current status of each character"
-      additionalProperties:
-        type: "object"
-        properties:
-          state:
-            type: "string"
-            enum: ["active", "away", "busy"]
-        required: ["state"]
-  required: ["responseHistory", "characterStatus"]
+  required: ["responseHistory"]
 
 # Whether to publish as 'Anonymous' instead of under your username.
 # is_anonymous: false
@@ -96,10 +86,11 @@ state_schema:
 #    you should not make or set this value.
 # github_path will be added if it does not exist. It is the URL of the repo.
 
-name: Dynamic Group Chat Stage
-type: stage
-version: 1.0.0
-description: A dynamic group conversation stage where characters interact naturally in a living world, with configurable participation rules and character states.
+# Stage information
+name: "Dynamic Group Chat Stage"
+type: "stage"
+version: "1.0.0"
+description: "A dynamic group conversation stage where characters interact naturally in a living world, with configurable participation rules."
 
 # Configuration schema
 config_schema:
@@ -139,23 +130,13 @@ state_schema:
           timestamp:
             type: "number"
         required: ["responders", "timestamp"]
-    characterStatus:
-      type: "object"
-      description: "Current status of each character"
-      additionalProperties:
-        type: "object"
-        properties:
-          state:
-            type: "string"
-            enum: ["active", "away", "busy"]
-        required: ["state"]
-  required: ["responseHistory", "characterStatus"]
+  required: ["responseHistory"]
 
 # Stage position and visibility
 position: "NONE"  # Stage doesn't need UI, it just modifies the prompts
 visibility: "PUBLIC"
 
 # Repository information
-github_path: 'https://github.com/Bersy123e/group_chat_master'
-extension_id: 'group-chat-master-d3fdf75a9edd'
+github_path: "https://github.com/Bersy123e/group_chat_master"
+extension_id: "group-chat-master-d3fdf75a9edd"
 
