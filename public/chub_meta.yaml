@@ -33,13 +33,19 @@
 config_schema:
   type: "object"
   properties:
+    maxActive:
+      type: "integer"
+      default: 5
+      minimum: 2
+      maximum: 15
+      description: "Maximum number of characters that can be active in a scene"
     activityChance:
       type: "integer"
       default: 50
       minimum: 10
       maximum: 100
       description: "Base probability (%) for additional characters to join a scene"
-  required: ["activityChance"]
+  required: ["maxActive", "activityChance"]
   additionalProperties: false
 
 # The schema of the state that you store.
@@ -99,13 +105,19 @@ description: A dynamic group conversation stage where characters interact natura
 config_schema:
   type: "object"
   properties:
+    maxActive:
+      type: "integer"
+      default: 5
+      minimum: 2
+      maximum: 15
+      description: "Maximum number of characters that can be active in a scene"
     activityChance:
       type: "integer"
       default: 50
       minimum: 10
       maximum: 100
       description: "Base probability (%) for additional characters to join a scene"
-  required: ["activityChance"]
+  required: ["maxActive", "activityChance"]
   additionalProperties: false
 
 # State schema for storing chat state
