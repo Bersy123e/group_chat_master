@@ -325,159 +325,22 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             .filter(msg => msg.trim() !== '')
             .join("\n\n");
 
-        // Determine which characters should respond based on context
-        // Not all characters need to respond to every message
-        let respondingCharacterIds: string[] = [];
-
-        // First, check if some characters are more relevant to the current message
-        // Characters mentioned by name should respond with highest priority
+        // Определяем основных персонажей, к которым обращено сообщение пользователя
+        let primaryResponders: string[] = [];
         activeChars.forEach(id => {
             const charName = this.characters[id].name.toLowerCase();
             const messageContentLower = userMessage.content.toLowerCase();
             
-            // If character is directly addressed or mentioned
+            // Если персонаж напрямую упомянут в сообщении
             if (messageContentLower.includes(charName)) {
-                respondingCharacterIds.push(id);
+                primaryResponders.push(id);
             }
         });
 
-        // Define character response relevance based on message content
-        type CharacterRelevance = {
-            id: string;
-            relevanceScore: number;
-        };
+        // Все активные персонажи должны участвовать в сцене
+        let respondingCharacterIds = [...activeChars];
 
-        // Calculate relevance scores for all characters who aren't directly mentioned
-        const relevanceScores: CharacterRelevance[] = activeChars
-            .filter(id => !respondingCharacterIds.includes(id))
-            .map(id => {
-                let score = 0;
-                const char = this.characters[id];
-                const charDesc = (char.description || '').toLowerCase();
-                const messageContentLower = userMessage.content.toLowerCase();
-                
-                // Increase score if message contains keywords related to character's description
-                // This helps characters with relevant expertise respond to appropriate topics
-                const keywords = charDesc.split(/\s+/).filter(word => word.length > 4);
-                keywords.forEach(keyword => {
-                    if (messageContentLower.includes(keyword)) {
-                        score += 2;
-                    }
-                });
-                
-                // Characters who were active in recent conversation get a boost
-                if (this.responseHistory.length > 0) {
-                    const recentResponders = this.responseHistory
-                        .slice(-3) // Look at last 3 messages
-                        .flatMap(entry => entry.responders);
-                        
-                    if (recentResponders.includes(id)) {
-                        score += 1; // Continuity bonus
-                    }
-                }
-                
-                // Character's current activity affects likelihood to respond
-                if (this.characterStates[id]) {
-                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
-                    
-                    // Characters who are actively conversing are more likely to respond
-                    if (['conversing', 'listening', 'watching'].includes(activity)) {
-                        score += 2;
-                    }
-                    // Characters engaged in less interactive activities are less likely to respond
-                    else if (['reading', 'writing', 'thinking'].includes(activity)) {
-                        score -= 1;
-                    }
-                    // Characters who are very disengaged are unlikely to respond
-                    else if (['sleeping', 'resting', 'away'].includes(activity)) {
-                        score -= 3;
-                    }
-                }
-                
-                return {
-                    id,
-                    relevanceScore: score
-                };
-            });
-
-        // Sort characters by relevance score
-        relevanceScores.sort((a, b) => b.relevanceScore - a.relevanceScore);
-
-        // Handle different message types
-        // If no characters are specifically mentioned, select characters based on context and relevance
-        if (respondingCharacterIds.length === 0) {
-            // If it's a question, have most relevant characters respond
-            if (userMessage.content.includes('?')) {
-                // Take top 1-3 most relevant characters for questions
-                const topResponders = relevanceScores
-                    .filter(char => char.relevanceScore > -2) // Don't include very disengaged characters
-                    .slice(0, 3); // Top 3 max
-                    
-                // Add them to responding list
-                respondingCharacterIds = topResponders.map(char => char.id);
-                
-                // Ensure at least one character responds to questions
-                if (respondingCharacterIds.length === 0 && activeChars.length > 0) {
-                    respondingCharacterIds = [activeChars[0]];
-                }
-            }
-            // If it's a short message or greeting, prioritize characters who are actively conversing
-            else if (userMessage.content.length < 20 || /^(hi|hello|hey|greetings)/i.test(userMessage.content)) {
-                // Find characters who are conversing
-                const conversing = activeChars.filter(id => {
-                    if (!this.characterStates[id] || !this.characterStates[id].currentActivity) return true;
-                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
-                    return ['conversing', 'listening', 'watching'].includes(activity);
-                });
-                
-                // Take 1-2 characters who are engaged
-                if (conversing.length > 0) {
-                    respondingCharacterIds = conversing.slice(0, Math.min(2, conversing.length));
-                } else {
-                    // If no one is conversing, take 1-2 from active
-                    respondingCharacterIds = activeChars.slice(0, Math.min(2, activeChars.length));
-                }
-            }
-            // For normal messages, select most relevant characters
-            else {
-                // Take most relevant characters, threshold depends on message length/complexity
-                const messageComplexity = Math.min(3, Math.ceil(userMessage.content.length / 50));
-                const topResponders = relevanceScores
-                    .filter(char => char.relevanceScore > -2) // Exclude very disengaged
-                    .slice(0, messageComplexity + 1); // More complex messages can have more responders
-                    
-                respondingCharacterIds = topResponders.map(char => char.id);
-                
-                // Ensure at least one character responds for normal messages
-                if (respondingCharacterIds.length === 0 && activeChars.length > 0) {
-                    // Find character with highest engagement
-                    const mostEngaged = activeChars.find(id => {
-                        if (!this.characterStates[id] || !this.characterStates[id].currentActivity) return true;
-                        const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
-                        return ['conversing', 'listening'].includes(activity);
-                    }) || activeChars[0];
-                    
-                    respondingCharacterIds = [mostEngaged];
-                }
-            }
-        }
-
-        // Apply a final balance check - very long/complex messages might warrant more responses
-        // but still limit to avoid overwhelming narratives
-        if (userMessage.content.length > 100 && respondingCharacterIds.length < Math.min(4, activeChars.length)) {
-            // Add one more responder from relevance list if available
-            const nextBestResponder = relevanceScores.find(char => !respondingCharacterIds.includes(char.id));
-            if (nextBestResponder) {
-                respondingCharacterIds.push(nextBestResponder.id);
-            }
-        }
-
-        // Ensure we don't have too many responders for short messages
-        if (userMessage.content.length < 50 && respondingCharacterIds.length > 2) {
-            respondingCharacterIds = respondingCharacterIds.slice(0, 2);
-        }
-        
-        // More detailed character descriptions including all available information
+        // Более детальные описания персонажей со всей доступной информацией
         const characterDescriptions = activeChars
             .map(id => {
                 const char = this.characters[id];
@@ -491,7 +354,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 return description;
             }).join("\n\n");
             
-        // More detailed information about absent characters
+        // Подробная информация об отсутствующих персонажах
         const absentCharactersInfo = this.getAvailableCharacters()
             .filter(id => !activeChars.includes(id))
             .map(id => {
@@ -513,12 +376,16 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const firstMessageInstructions = isFirstMessage ? 
             `This is the FIRST MESSAGE in the conversation. Start by introducing the scene and characters naturally. Establish the setting and initial dynamics between characters. Respond to the user's first message in a way that welcomes them to the conversation.` : '';
 
+        // Указываем основных персонажей, к которым направлено сообщение
+        const primaryFocusText = primaryResponders.length > 0 ? 
+            `CHARACTERS DIRECTLY ADDRESSED: ${primaryResponders.map(id => this.characters[id].name).join(", ")}` : '';
+
         const stageDirections = `System: You are creating a UNIFIED NARRATIVE SCENE with natural interactions between characters. Your task is to generate a realistic, book-like narrative where characters interact with each other and their environment in a flowing, coherent story.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
 
-${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
+${primaryFocusText ? primaryFocusText + '\n\n' : ''}${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
 
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
@@ -541,17 +408,18 @@ ${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full c
 13. CHARACTERS SHOULD FOCUS ON EACH OTHER, not just on responding to the user's message.
 14. DO NOT CREATE ANY NEW CHARACTERS - even for background roles or one-time mentions. Use only the characters listed above.
 15. NEVER imply the user is a participant in the scene. Users are external observers who can be acknowledged but not physically interacted with.
+${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate in the scene, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge and respond to the user\'s message more directly.' : ''}
 
 IMPORTANT CHARACTER PARTICIPATION RULES:
-- NOT EVERY CHARACTER NEEDS TO SPEAK IN EVERY SCENE. This is critical for natural flow.
-- Some characters may be present but silent or just briefly react with a nod or gesture.
+- ALL CHARACTERS SHOULD PARTICIPATE IN THE SCENE, but in varying degrees depending on context.
+- Not every character needs to speak extensively - some may just react briefly or have smaller roles.
 - Characters engaged in activities (${activeChars.map(id => {
   return this.characterStates[id] ? 
     `${this.characters[id].name}: ${this.characterStates[id].currentActivity || 'conversing'}` : 
     `${this.characters[id].name}: conversing`;
-}).join(', ')}) may be less engaged in conversation.
+}).join(', ')}) may be less verbose but should still be part of the scene.
 - Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
-- Limit verbose dialogue to characters who would actually be engaged based on context.
+- AVOID having just one character dominate the entire scene - create a balanced, dynamic interaction.
 
 CHARACTER INTERACTION RULES:
 - Characters should ACTIVELY INTERACT WITH EACH OTHER, not just respond to the user
@@ -670,14 +538,14 @@ IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${cha
         this.updateCharacterStates(botMessage.content);
         
         // Store the bot's response in the response history
+        // Используем всех активных персонажей, а не только отвечающих
+        const activeChars = this.getActiveCharacters();
         const botEntry: {
             responders: string[];
             messageContent?: string;
             timestamp: number;
         } = {
-            responders: this.characterStates ? 
-                Object.keys(this.characterStates).filter(id => this.characterStates[id].isPresent) : 
-                [],
+            responders: activeChars,
             messageContent: botMessage.content,
             timestamp: Date.now()
         };
@@ -689,8 +557,8 @@ IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${cha
         
         return {
             messageState: {
-                lastResponders: botEntry.responders,
-                activeCharacters: new Set(this.getActiveCharacters()),
+                lastResponders: activeChars,
+                activeCharacters: new Set(activeChars),
                 characterStates: this.characterStates
             },
             chatState: {
