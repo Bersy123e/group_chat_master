@@ -22,10 +22,7 @@ type MessageStateType = {
  @description This is for things you want people to be able to configure,
   like background color.
  ***/
-type ConfigType = {
-    maxResponders: number;     // Maximum number of characters that can respond (2-15)
-    chainProbability: number;  // Probability of chain responses (10-100)
-};
+type ConfigType = Record<string, never>; // Empty config type
 
 /***
  The type that this stage persists chat initialization state in.
@@ -59,7 +56,6 @@ type ChatStateType = {
 export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, ConfigType> {
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
-    private config: ConfigType;
 
     constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, ConfigType>) {
         /***
@@ -70,101 +66,18 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          User at @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/user.ts
          ***/
         super(data);
-        const { characters, config: rawConfig, chatState } = data;
+        const { characters, chatState } = data;
         
         this.characters = characters;
-        this.config = {
-            maxResponders: 5,
-            chainProbability: 50,
-            ...(rawConfig || {})
-        };
-
-        // Validate config
-        if (!this.config.maxResponders || this.config.maxResponders < 2 || this.config.maxResponders > 15) {
-            this.config.maxResponders = 5;
-        }
-        if (!this.config.chainProbability || this.config.chainProbability < 10 || this.config.chainProbability > 100) {
-            this.config.chainProbability = 50;
-        }
-
-        // Initialize response history
         this.responseHistory = chatState?.responseHistory || [];
     }
 
-    private selectMainResponder(message: Message): string {
-        const availableChars = Object.keys(this.characters).filter(id => 
-            !this.characters[id].isRemoved
-        );
-        if (availableChars.length === 0) return '';
-
-        // Direct mention check
-        const mentionedChar = availableChars.find(id => {
-            const char = this.characters[id];
-            return message.content?.toLowerCase().includes(char.name.toLowerCase());
-        });
-        if (mentionedChar) return mentionedChar;
-
-        // Score based on context and history
-        const scores = new Map<string, number>();
-        const recentHistory = this.responseHistory.slice(-3);
-
-        availableChars.forEach(id => {
-            const char = this.characters[id];
-            let score = 0;
-
-            // Context matching
-            if (message.content && char.description) {
-                const messageWords = message.content.toLowerCase().split(' ');
-                const descriptionWords = char.description.toLowerCase().split(' ');
-                score += this.calculateKeywordOverlap(messageWords, descriptionWords);
-            }
-
-            // Recent participation penalty
-            const recentParticipation = recentHistory.filter(h => h.responders.includes(id)).length;
-            score -= recentParticipation;
-
-            // Add some randomness
-            score += Math.random();
-
-            scores.set(id, score);
-        });
-
-        // Return highest scoring character
-        return Array.from(scores.entries())
-            .sort((a, b) => b[1] - a[1])[0][0];
-    }
-
-    private selectAdditionalResponders(mainResponderId: string): string[] {
-        const responders = [mainResponderId];
-        const availableChars = Object.keys(this.characters).filter(id => 
-            !this.characters[id].isRemoved && 
-            id !== mainResponderId
-        );
-
-        let currentProbability = this.config.chainProbability;
-        while (
-            responders.length < this.config.maxResponders && 
-            availableChars.length > 0 && 
-            Math.random() * 100 < currentProbability
-        ) {
-            const index = Math.floor(Math.random() * availableChars.length);
-            const selectedChar = availableChars[index];
-            responders.push(selectedChar);
-            availableChars.splice(index, 1);
-            currentProbability *= 0.7;
-        }
-
-        return responders;
-    }
-
-    private calculateKeywordOverlap(keywords1: string[], keywords2: string[]): number {
-        const set1 = new Set(keywords1);
-        return keywords2.filter(word => set1.has(word)).length;
+    private getAvailableCharacters(): string[] {
+        return Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
     }
 
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        const mainResponder = this.selectMainResponder(userMessage);
-        const allResponders = this.selectAdditionalResponders(mainResponder);
+        const availableChars = this.getAvailableCharacters();
         
         // Get recent history for context
         const recentHistory = this.responseHistory.slice(-3);
@@ -175,8 +88,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             : "";
 
         // Format character information
-        const characterInfo = Object.keys(this.characters)
-            .filter(id => !this.characters[id].isRemoved)
+        const characterInfo = availableChars
             .map(id => {
                 const char = this.characters[id];
                 return `${char.name}:
@@ -184,24 +96,24 @@ ${char.personality || char.description}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: Group conversation where characters interact based on context, history, and direct mentions.
+        const stageDirections = `System: Group conversation where characters interact naturally based on context, history, and current situation.
 
 Recent History:
 ${contextInfo}
 
-Characters:
+Available Characters:
 ${characterInfo}
 
 Rules:
 1. Response Order:
-   - If a character is directly mentioned, they MUST respond first
-   - Other characters join based on relevance to context and history
+   - If a character is directly mentioned, they should respond first
+   - Other characters may join based on their personality and the context
+   - Characters with relevant experience or knowledge should be more likely to participate
 
 2. Group Dynamics:
-   - Up to ${this.config.maxResponders} characters can participate in one message
-   - After first response, each additional character has ${this.config.chainProbability}% chance to join
-   - Characters react to previous messages and each other
-   - Maintain natural conversation flow
+   - Characters should interact naturally based on their personalities and relationships
+   - Not every character needs to respond to every message
+   - Consider the flow of conversation and relevance when deciding who participates
 
 Format:
 **{{char}}** *action/emotion* Speaks and interacts with others
@@ -212,14 +124,14 @@ Write a group response following the rules above:`;
         return {
             stageDirections,
             messageState: { 
-                lastResponders: allResponders,
-                activeCharacters: new Set(Object.keys(this.characters).filter(id => !this.characters[id].isRemoved))
+                lastResponders: availableChars,
+                activeCharacters: new Set(availableChars)
             },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
                     { 
-                        responders: allResponders,
+                        responders: availableChars,
                         messageContent: userMessage.content,
                         timestamp: Date.now()
                     }
@@ -263,7 +175,7 @@ Write a group response following the rules above:`;
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
 
-            // Extract all participating characters with the new format
+            // Extract all participating characters
             const charPattern = /\*\*{{([^}]+)}}\*\*/g;
             const participants = new Set<string>();
             let match;

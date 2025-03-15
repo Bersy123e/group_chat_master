@@ -33,19 +33,19 @@
 config_schema:
   type: "object"
   properties:
-    maxActive:
+    maxResponders:
       type: "integer"
       default: 5
       minimum: 2
       maximum: 15
-      description: "Maximum number of characters that can be active in a scene"
-    activityChance:
+      description: "Maximum number of characters that can respond"
+    chainProbability:
       type: "integer"
       default: 50
       minimum: 10
       maximum: 100
-      description: "Base probability (%) for additional characters to join a scene"
-  required: ["maxActive", "activityChance"]
+      description: "Probability of chain responses"
+  required: ["maxResponders", "chainProbability"]
   additionalProperties: false
 
 # The schema of the state that you store.
@@ -90,26 +90,9 @@ state_schema:
 name: "Dynamic Group Chat Stage"
 type: "stage"
 version: "1.0.0"
-description: "A dynamic group conversation stage where characters interact naturally in a living world, with configurable participation rules."
-
-# Configuration schema
-config_schema:
-  type: "object"
-  properties:
-    maxActive:
-      type: "integer"
-      default: 5
-      minimum: 2
-      maximum: 15
-      description: "Maximum number of characters that can be active in a scene"
-    activityChance:
-      type: "integer"
-      default: 50
-      minimum: 10
-      maximum: 100
-      description: "Base probability (%) for additional characters to join a scene"
-  required: ["maxActive", "activityChance"]
-  additionalProperties: false
+description: "A dynamic group conversation stage where characters interact naturally in a living world."
+visibility: "PUBLIC"
+position: "NONE"
 
 # State schema for storing chat state
 state_schema:
@@ -131,10 +114,6 @@ state_schema:
             type: "number"
         required: ["responders", "timestamp"]
   required: ["responseHistory"]
-
-# Stage position and visibility
-position: "NONE"  # Stage doesn't need UI, it just modifies the prompts
-visibility: "PUBLIC"
 
 # Repository information
 github_path: "https://github.com/Bersy123e/group_chat_master"
