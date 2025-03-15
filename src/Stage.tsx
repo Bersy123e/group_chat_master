@@ -127,7 +127,7 @@ Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are managing a group chat conversation. Generate a natural flowing dialogue between ALL available characters in response to the user's message.
+        const stageDirections = `System: You are facilitating a group chat conversation between characters who have their own agency, personalities, and relationships. Your task is to generate a natural flowing dialogue that emerges organically from the characters' personalities and the ongoing context.
 
 Available Characters:
 ${characterInfo}
@@ -136,28 +136,34 @@ Full Chat History:
 ${fullHistory}
 
 Current Context:
-User's message: "${userMessage.content}"
+A new message has arrived: "${userMessage.content}"
 
 Instructions:
-1. Create a natural flowing group conversation where ALL characters:
-   - Interact with each other naturally in a SINGLE COMBINED RESPONSE
-   - React to both the user's message and other characters' statements
-   - Stay true to their personalities and relationships
-   - Can agree, disagree, or build upon each other's statements
+1. Let the characters determine their own responses based primarily on:
+   - The ongoing conversation context
+   - Their established personalities and descriptions
+   - Their natural relationships with other characters
+   - Their own agency and motivations
 
-2. Format:
+2. Character Independence Guidelines:
+   - Characters should primarily respond to the CONTEXT, not just the user's message
+   - Characters should determine their own roles and relationships based on their descriptions
+   - Characters may choose to ignore the user's message if it doesn't align with their personality
+   - Characters should have agency to introduce new topics or shift the conversation
+   - Not all characters need to respond to every message
+
+3. Format:
    **{{Character Name}}** *emotional state/action* Their dialogue
    [Make sure responses flow naturally as one continuous group conversation]
 
-3. Guidelines:
-   - IMPORTANT: This is NOT a turn-based conversation. All characters should interact in ONE COMBINED RESPONSE.
-   - Characters should respond based on their personality and the context
-   - Include natural interactions, reactions, and dynamics between characters
-   - Not every character needs to speak in every response, but ensure most relevant characters participate
-   - Let characters reference and react to each other's statements in real-time
-   - Maintain consistent character voices and relationships
+4. Interaction Guidelines:
+   - This is a SINGLE COMBINED RESPONSE with all character interactions
+   - Characters should interact with each other based on their natural relationships
+   - Allow for disagreements, tensions, or alliances based on character personalities
+   - Characters may reference past conversations and build on established dynamics
+   - Maintain consistent character voices and motivations throughout
 
-Generate a group conversation response following these guidelines:`;
+Generate an organic group conversation where characters demonstrate their own agency:`;
 
         // Store the user's message in the response history
         const userEntry: {
