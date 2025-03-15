@@ -348,7 +348,7 @@ Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
             /^(hi|hello|hey|greetings|sup|yo|what's up|how are you)/i.test(userMessage.content) ||
             this.responseHistory.length % 3 === 0; // Every 3rd message, focus more on ambient world
 
-        const stageDirections = `System: You are creating a vivid, dynamic scene with natural flowing interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in fluid, overlapping ways.
+        const stageDirections = `System: You are creating a UNIFIED DYNAMIC SCENE with natural interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in a single flowing narrative.
 
 CURRENTLY PRESENT CHARACTERS (ONLY USE THESE):
 ${characterInfo}
@@ -363,23 +363,24 @@ New message from User: "${userMessage.content}"
 
 CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
-2. ONLY generate responses from the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
-3. DO NOT include absent characters in the dialogue - they are not present in the scene.
-4. Characters may reference absent characters but absent characters CANNOT speak or act.
-5. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
+2. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
+3. ONLY use the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
+4. DO NOT include absent characters in the dialogue - they are not present in the scene.
+5. Characters may reference absent characters but absent characters CANNOT speak or act.
+6. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 
-DYNAMIC SCENE CREATION:
-- Create a FLUID, CONTINUOUS SCENE rather than separate character responses
-- Characters should interact in OVERLAPPING ways (talking over each other, reacting mid-sentence)
+CREATING A UNIFIED DYNAMIC SCENE:
+- Create a SINGLE FLUID SCENE rather than separate character responses
+- Characters should interact SIMULTANEOUSLY (interrupting each other, reacting to others' remarks)
 - Mix dialogue with actions, reactions, and environmental interactions
 - Show multiple characters engaged in the SAME conversation or activity
 - Create a sense of SHARED SPACE where characters are aware of each other
 
 INTERACTION TECHNIQUES:
 - Show characters INTERRUPTING each other mid-sentence
-- Include SIDE CONVERSATIONS happening simultaneously
+- Include PARALLEL CONVERSATIONS happening simultaneously
 - Show characters REACTING NONVERBALLY to what others are saying
-- Include characters FINISHING EACH OTHER'S SENTENCES
+- Include moments when characters FINISH EACH OTHER'S SENTENCES
 - Show characters TALKING WHILE DOING other activities
 - Include BACKGROUND ACTIVITIES that continue throughout the scene
 - Show characters AGREEING/DISAGREEING with each other through words and actions
@@ -391,9 +392,15 @@ SCENE STRUCTURE:
 - Include ENVIRONMENTAL DETAILS that characters interact with
 - End with a sense of ONGOING ACTIVITY rather than conclusion
 
-FORMAT EXAMPLES (use these as inspiration for more dynamic interactions):
+RESPONSE FORMAT:
+- Use *italics* for describing actions and settings
+- Use **{{Character Name}}** to indicate the speaking character
+- Combine actions and dialogue into a single narrative flow
+- DO NOT separate responses by character - create a UNIFIED SCENE
 
-Example 1 - Overlapping dialogue:
+EXAMPLES OF DYNAMIC INTERACTIONS:
+
+Example 1 - Characters interrupting each other:
 *The afternoon sun filters through dusty windows as the group gathers in the living room*
 
 **{{Character1}}** *leaning forward in her chair* "I think we should consider the implications of—"
@@ -422,7 +429,7 @@ Example 3 - Reactions and environment:
 
 **{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
 
-IMPORTANT: Create a FLUID, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) interact naturally with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously.`;
+IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously.`;
 
         // Store the user's message in the response history
         const userEntry: {
