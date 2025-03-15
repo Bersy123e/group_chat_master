@@ -162,6 +162,11 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             /\bjust the two of us\b/i
         ];
         
+        const activityPatterns = [
+            /\b(reading|writing|drawing|playing|working|cooking|eating|drinking|sleeping|resting|thinking|watching|listening)\b/i,
+            /\b(busy with|occupied with|engaged in|focused on)\s+([^,.]+)/i
+        ];
+        
         // Check for characters leaving
         availableChars.forEach(id => {
             const charName = this.characters[id].name.toLowerCase();
@@ -200,6 +205,27 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                     };
                 }
             });
+            
+            // Check if character is mentioned as doing an activity
+            activityPatterns.forEach(pattern => {
+                const activityRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                if (activityRegex.test(messageContent)) {
+                    const matches = messageContent.match(activityRegex);
+                    if (matches && matches[1]) {
+                        this.characterStates[id] = {
+                            ...this.characterStates[id],
+                            currentActivity: matches[1],
+                            lastSeen: now
+                        };
+                    } else if (matches && matches[2]) {
+                        this.characterStates[id] = {
+                            ...this.characterStates[id],
+                            currentActivity: matches[2],
+                            lastSeen: now
+                        };
+                    }
+                }
+            });
         });
         
         // Check for private conversations
@@ -223,23 +249,37 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         });
         
         // Randomly have characters leave or return based on time (for more dynamic world)
-        const randomChance = 0.1; // 10% chance per message
+        const randomChance = 0.15; // 15% chance per message
         if (Math.random() < randomChance) {
             const randomCharId = availableChars[Math.floor(Math.random() * availableChars.length)];
             if (randomCharId) {
                 const isCurrentlyPresent = this.characterStates[randomCharId].isPresent;
                 
-                // If present, might leave
+                // If present, might leave or start an activity
                 if (isCurrentlyPresent) {
-                    const activities = ['getting a drink', 'checking something', 'taking a break', 'attending to something'];
+                    const activities = [
+                        'getting a drink', 'checking something', 'taking a break', 
+                        'attending to something', 'reading a book', 'looking out the window',
+                        'organizing their belongings', 'writing something down',
+                        'preparing food', 'fixing something', 'lost in thought'
+                    ];
                     const randomActivity = activities[Math.floor(Math.random() * activities.length)];
                     
-                    this.characterStates[randomCharId] = {
-                        ...this.characterStates[randomCharId],
-                        isPresent: false,
-                        currentActivity: randomActivity,
-                        lastSeen: now
-                    };
+                    // 50% chance to leave, 50% chance to stay but be engaged in activity
+                    if (Math.random() < 0.5) {
+                        this.characterStates[randomCharId] = {
+                            ...this.characterStates[randomCharId],
+                            isPresent: false,
+                            currentActivity: randomActivity,
+                            lastSeen: now
+                        };
+                    } else {
+                        this.characterStates[randomCharId] = {
+                            ...this.characterStates[randomCharId],
+                            currentActivity: randomActivity,
+                            lastSeen: now
+                        };
+                    }
                 } 
                 // If absent, might return
                 else {
@@ -301,7 +341,14 @@ Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
                 return `${char.name} (${this.characterStates[id].currentActivity || 'away'})`;
             });
 
-        const stageDirections = `System: You are facilitating a dynamic group conversation where characters come and go naturally, just like in real life. Your task is to create a realistic group dynamic where only the currently present characters interact with each other.
+        // Determine if we should focus on the user's message or create an ambient scene
+        // If user's message is short or a greeting, we might focus more on ambient world
+        const isAmbientFocused = 
+            userMessage.content.length < 15 || 
+            /^(hi|hello|hey|greetings|sup|yo|what's up|how are you)/i.test(userMessage.content) ||
+            this.responseHistory.length % 3 === 0; // Every 3rd message, focus more on ambient world
+
+        const stageDirections = `System: You are simulating a living, breathing world where characters have their own lives, activities, and relationships. Your task is to create a realistic scene where characters interact with each other and their environment, with the user being just one part of this world.
 
 CURRENTLY PRESENT CHARACTERS (ONLY USE THESE):
 ${characterInfo}
@@ -318,36 +365,37 @@ CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
 2. ONLY generate responses from the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
 3. DO NOT include absent characters in the dialogue - they are not present in the scene.
-4. Characters may reference absent characters ("I wonder where X went") but absent characters CANNOT speak.
+4. Characters may reference absent characters but absent characters CANNOT speak or act.
+5. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 
 WORLD DYNAMICS:
-- Characters naturally come and go from conversations
-- Characters have their own lives and activities outside the main conversation
-- The environment feels like a living, breathing space where people move around
-- Characters might mention what absent characters are doing or where they went
-- Characters might notice when others leave or return to the conversation
+- This is a LIVING WORLD where characters have their own agendas and activities
+- Characters should be engaged in their own activities and conversations
+- The user is just ONE PARTICIPANT in this world, not the center of attention
+- Characters should interact with objects, the environment, and each other
+- Include ambient details about the setting, atmosphere, and ongoing activities
 
-CHARACTER AUTHENTICITY:
-- Each character MUST act according to THEIR OWN description and personality
-- Characters should have distinct voices, opinions, and reactions
-- Characters should maintain consistent personalities throughout
-- Characters' responses should reflect their background and traits
-- NO character should act out of character or contradict their description
+NON-DIALOGUE INTERACTIONS:
+- Include physical actions, body language, and environmental interactions
+- Characters can be doing activities while talking (reading, eating, working, etc.)
+- Show characters interacting with objects in the environment
+- Include sensory details (sounds, smells, temperature, lighting)
+- Characters might be focused on tasks rather than conversation
 
-INTERACTIVE DYNAMICS:
-- Characters MUST REACT to each other's statements and emotions
-- Show characters responding directly to what other characters say
-- Include interruptions, agreements, disagreements based on character relationships
-- Characters should address each other by name and reference each other's points
-- Create natural back-and-forth exchanges between multiple characters
+CHARACTER AUTONOMY:
+- Characters should have their own goals and interests independent of the user
+- Characters might be in the middle of their own conversations or activities
+- Characters might be more interested in each other than in the user
+- Characters should have ongoing storylines that progress naturally
+- Characters might only briefly acknowledge the user before returning to their activities
 
 FORMAT REQUIREMENTS:
-**{{Character Name}}** *emotional state/action* Their dialogue that reflects their personality
-**{{Another Character}}** *reaction to previous character* Their response that shows they're listening
-**{{Third Character}}** *action showing personality* Their contribution to the conversation
-[Ensure dialogue flows naturally between characters with clear reactions to each other]
+**{{Character Name}}** *action/state* Their dialogue or non-verbal activity
+**{{Another Character}}** *physical interaction with environment* Their response or activity
+**{{Third Character}}** *engaged in activity* Their contribution to the scene
+[Ensure the scene feels natural with a mix of dialogue and non-dialogue interactions]
 
-IMPORTANT: Create a group conversation where ONLY THE PRESENT CHARACTERS (${characterNames.join(", ")}) interact with each other. Each character must speak and act according to their own personality. DO NOT include any dialogue from absent characters or the user.`;
+IMPORTANT: Create a living scene where ONLY THE PRESENT CHARACTERS (${characterNames.join(", ")}) interact with each other and their environment. Each character must act according to their own personality and current activity. The user should feel like they've walked into an ongoing world that exists independently of them.`;
 
         // Store the user's message in the response history
         const userEntry: {
