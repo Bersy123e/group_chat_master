@@ -35,48 +35,52 @@ config_schema:
   properties:
     maxActive:
       type: "integer"
-      default: 4
+      default: 5
       minimum: 2
       maximum: 15
       description: "Maximum number of characters that can be active in a scene"
     activityChance:
       type: "integer"
-      default: 70
+      default: 50
       minimum: 10
       maximum: 100
       description: "Base probability (%) for additional characters to join a scene"
   required: ["maxActive", "activityChance"]
+  additionalProperties: false
 
 # The schema of the state that you store.
 # This isn't needed even if you do store state,
 #   and is here more for future use cases to
 #   optimize storage.
 state_schema:
-  chat:
-    type: "object"
-    properties:
-      characterStatus:
-        type: "object"
-        additionalProperties:
-          type: "object"
-          properties:
-            state:
-              type: "string"
-              enum: ["active", "away", "busy"]
-            activity:
-              type: "string"
-      worldState:
+  type: "object"
+  properties:
+    responseHistory:
+      type: "array"
+      description: "History of character responses and interactions"
+      items:
         type: "object"
         properties:
-          setting:
+          responders:
+            type: "array"
+            items:
+              type: "string"
+          messageContent:
             type: "string"
-  message:
-    type: "object"
-    properties:
-      lastResponders:
-        type: "array"
-        items:
-          type: "string"
+          timestamp:
+            type: "number"
+        required: ["responders", "timestamp"]
+    characterStatus:
+      type: "object"
+      description: "Current status of each character"
+      additionalProperties:
+        type: "object"
+        properties:
+          state:
+            type: "string"
+            enum: ["active", "away", "busy"]
+        required: ["state"]
+  required: ["responseHistory", "characterStatus"]
 
 # Whether to publish as 'Anonymous' instead of under your username.
 # is_anonymous: false
@@ -95,23 +99,66 @@ state_schema:
 github_path: 'https://github.com/Bersy123e/group_chat_master'
 extension_id: 'group-chat-master-d3fdf75a9edd'
 
-name: "Living World Stage"
-description: "A dynamic stage that creates an immersive world where characters live, interact, and respond naturally to conversations while maintaining their own activities and states"
-version: "1.0.0"
-type: "stage"
-position: "NONE"  # Stage doesn't need UI, it just modifies the prompts
+name: Dynamic Group Chat Stage
+type: stage
+version: 1.0.0
+description: A dynamic group conversation stage where characters interact naturally in a living world, with configurable participation rules and character states.
 
-config:
-  maxActive:
-    type: "number"
-    description: "Maximum number of characters that can be active in a scene"
-    default: 4
-    minimum: 2
-    maximum: 15
-  activityChance:
-    type: "number"
-    description: "Base probability (%) for additional characters to join a scene"
-    default: 70
-    minimum: 10
-    maximum: 100
+# Configuration schema
+config_schema:
+  type: "object"
+  properties:
+    maxActive:
+      type: "integer"
+      default: 5
+      minimum: 2
+      maximum: 15
+      description: "Maximum number of characters that can be active in a scene"
+    activityChance:
+      type: "integer"
+      default: 50
+      minimum: 10
+      maximum: 100
+      description: "Base probability (%) for additional characters to join a scene"
+  required: ["maxActive", "activityChance"]
+  additionalProperties: false
+
+# State schema for storing chat state
+state_schema:
+  type: "object"
+  properties:
+    responseHistory:
+      type: "array"
+      description: "History of character responses and interactions"
+      items:
+        type: "object"
+        properties:
+          responders:
+            type: "array"
+            items:
+              type: "string"
+          messageContent:
+            type: "string"
+          timestamp:
+            type: "number"
+        required: ["responders", "timestamp"]
+    characterStatus:
+      type: "object"
+      description: "Current status of each character"
+      additionalProperties:
+        type: "object"
+        properties:
+          state:
+            type: "string"
+            enum: ["active", "away", "busy"]
+        required: ["state"]
+  required: ["responseHistory", "characterStatus"]
+
+# Stage position and visibility
+position: "NONE"  # Stage doesn't need UI, it just modifies the prompts
+visibility: "PUBLIC"
+
+# Repository information
+github_path: 'https://github.com/Bersy123e/group_chat_master'
+extension_id: 'group-chat-master-d3fdf75a9edd'
 
