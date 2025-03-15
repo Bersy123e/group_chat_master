@@ -184,24 +184,30 @@ ${char.personality || char.description}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: This is a dynamic group conversation. Characters interact naturally based on context and their personalities.
+        const stageDirections = `System: Group conversation where characters interact based on context, history, and direct mentions.
 
-Recent Context:
+Recent History:
 ${contextInfo}
 
-Available Characters:
+Characters:
 ${characterInfo}
 
-Response Format:
-{{char=Name}} *actions* Says something
-
 Rules:
-- Up to ${this.config.maxResponders} characters can participate in each response
-- Each additional character has ${this.config.chainProbability}% chance to join
-- Characters maintain their personalities and scenarios
-- Responses should build on previous context
+1. Response Order:
+   - If a character is directly mentioned, they MUST respond first
+   - Other characters join based on relevance to context and history
 
-Continue the conversation:`;
+2. Group Dynamics:
+   - Up to ${this.config.maxResponders} characters can participate in one message
+   - After first response, each additional character has ${this.config.chainProbability}% chance to join
+   - Characters react to previous messages and each other
+   - Maintain natural conversation flow
+
+Format:
+**{{char}}** *action/emotion* Speaks and interacts with others
+[Each character response starts with **{{their name}}**]
+
+Write a group response following the rules above:`;
 
         return {
             stageDirections,
@@ -257,8 +263,8 @@ Continue the conversation:`;
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
 
-            // Extract all participating characters
-            const charPattern = /{{char=([^}]+)}}/g;
+            // Extract all participating characters with the new format
+            const charPattern = /\*\*{{([^}]+)}}\*\*/g;
             const participants = new Set<string>();
             let match;
             
