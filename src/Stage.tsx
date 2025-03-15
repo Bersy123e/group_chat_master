@@ -92,61 +92,72 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             this.config.chainProbability = 50;
         }
 
-        // Preserve existing history if available
-        if (chatState?.responseHistory) {
-            this.responseHistory = chatState.responseHistory;
-            this.isFirstMessage = false;
-        } else {
-            this.responseHistory = [];
-            this.isFirstMessage = true;
-        }
+        // Initialize response history
+        this.responseHistory = chatState?.responseHistory || [];
     }
 
-    private selectResponders(message: Message): string[] {
+    private selectMainResponder(message: Message): string {
         const availableChars = Object.keys(this.characters).filter(id => 
             !this.characters[id].isRemoved && 
             !this.getTemporarilyExcluded().has(id)
         );
-        if (availableChars.length === 0) return [];
+        if (availableChars.length === 0) return '';
 
-        // Check for direct mentions
-        const mentionedChars = availableChars.filter(id => {
+        // Direct mention check
+        const mentionedChar = availableChars.find(id => {
             const char = this.characters[id];
             return message.content?.toLowerCase().includes(char.name.toLowerCase());
         });
+        if (mentionedChar) return mentionedChar;
 
-        if (mentionedChars.length > 0) {
-            // Add related characters based on scenario
-            const relatedChars = availableChars.filter(id => {
-                if (mentionedChars.includes(id)) return false;
-                const char = this.characters[id];
-                return mentionedChars.some(mentionedId => 
-                    this.characters[mentionedId].scenario?.toLowerCase().includes(char.name.toLowerCase()) ||
-                    char.scenario?.toLowerCase().includes(this.characters[mentionedId].name.toLowerCase())
-                );
-            });
-            
-            const allRelevantChars = [...mentionedChars, ...relatedChars];
-            return allRelevantChars.slice(0, this.config.maxResponders);
-        }
+        // Score based on context and history
+        const scores = new Map<string, number>();
+        const recentHistory = this.responseHistory.slice(-3);
 
-        // Select random initial responder
-        const mainResponder = availableChars[Math.floor(Math.random() * availableChars.length)];
-        const responders = [mainResponder];
-        
-        // Filter out main responder from available chars
-        const remainingChars = availableChars.filter(id => id !== mainResponder);
-        
-        // Add additional responders based on chain probability
+        availableChars.forEach(id => {
+            const char = this.characters[id];
+            let score = 0;
+
+            // Context matching
+            if (message.content && char.description) {
+                const messageWords = message.content.toLowerCase().split(' ');
+                const descriptionWords = char.description.toLowerCase().split(' ');
+                score += this.calculateKeywordOverlap(messageWords, descriptionWords);
+            }
+
+            // Recent participation penalty
+            const recentParticipation = recentHistory.filter(h => h.responders.includes(id)).length;
+            score -= recentParticipation;
+
+            // Add some randomness
+            score += Math.random();
+
+            scores.set(id, score);
+        });
+
+        // Return highest scoring character
+        return Array.from(scores.entries())
+            .sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+    private selectAdditionalResponders(mainResponderId: string): string[] {
+        const responders = [mainResponderId];
+        const availableChars = Object.keys(this.characters).filter(id => 
+            !this.characters[id].isRemoved && 
+            !this.getTemporarilyExcluded().has(id) && 
+            id !== mainResponderId
+        );
+
         let currentProbability = this.config.chainProbability;
         while (
             responders.length < this.config.maxResponders && 
-            remainingChars.length > 0 && 
+            availableChars.length > 0 && 
             Math.random() * 100 < currentProbability
         ) {
-            const index = Math.floor(Math.random() * remainingChars.length);
-            responders.push(remainingChars[index]);
-            remainingChars.splice(index, 1);
+            const index = Math.floor(Math.random() * availableChars.length);
+            const selectedChar = availableChars[index];
+            responders.push(selectedChar);
+            availableChars.splice(index, 1);
             currentProbability *= 0.7;
         }
 
@@ -198,40 +209,6 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         return Array.from(keywords).join(' ');
     }
 
-    private selectAdditionalResponders(mainResponders: string[], message: Message): string[] {
-        const allResponders = [...mainResponders];
-        const availableChars = Object.keys(this.characters).filter(id => 
-            !this.characters[id].isRemoved && 
-            !this.getTemporarilyExcluded().has(id) && 
-            !mainResponders.includes(id)
-        );
-
-        if (availableChars.length === 0) return allResponders;
-
-        let currentProbability = this.config.chainProbability;
-        const maxAdditional = Math.min(
-            this.config.maxResponders - mainResponders.length,
-            Math.ceil(availableChars.length * 0.6)
-        );
-
-        while (
-            allResponders.length < this.config.maxResponders && 
-            availableChars.length > 0 && 
-            allResponders.length < maxAdditional &&
-            Math.random() * 100 < currentProbability
-        ) {
-            const randomIndex = Math.floor(Math.random() * availableChars.length);
-            const selectedChar = availableChars[randomIndex];
-            
-            allResponders.push(selectedChar);
-            availableChars.splice(randomIndex, 1);
-            
-            currentProbability *= 0.8;
-        }
-
-        return allResponders;
-    }
-
     private analyzeRecentInteractions(): Map<string, number> {
         const interactions = new Map<string, number>();
         const recentHistory = this.responseHistory.slice(-10);
@@ -266,19 +243,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     }
 
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        const responders = this.selectResponders(userMessage);
+        const mainResponder = this.selectMainResponder(userMessage);
+        const allResponders = this.selectAdditionalResponders(mainResponder);
         
-        // Format character information
-        const characterInfo = responders.map(id => {
-            const char = this.characters[id];
-            return `${char.name}:
-${char.system_prompt ? `System prompt: ${char.system_prompt}` : ''}
-Personality: ${char.personality || 'Based on description'}
-Description: ${char.description}
-${char.example_dialogs ? `Example dialogs: ${char.example_dialogs}` : ''}
-${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
-        }).join("\n\n");
-
         // Get recent history for context
         const recentHistory = this.responseHistory.slice(-3);
         const contextInfo = recentHistory.length > 0 
@@ -287,7 +254,20 @@ ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             ).join("\n")
             : "";
 
-        const stageDirections = `System: This is a dynamic group conversation. Characters should interact naturally and respond to each other.
+        // Format character information
+        const characterInfo = allResponders.map(id => {
+            const char = this.characters[id];
+            const mood = this.getCharacterMood(id);
+            return `${char.name}:
+${char.system_prompt ? `System prompt: ${char.system_prompt}` : ''}
+${char.post_history_instructions ? `Post history: ${char.post_history_instructions}` : ''}
+Personality: ${char.personality || 'Based on description'}
+Description: ${char.description}
+${mood ? `Current state: ${mood}` : ''}
+${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
+        }).join("\n\n");
+
+        const stageDirections = `System: This is a dynamic group conversation where characters interact naturally with each other.
 
 ${contextInfo}
 
@@ -298,25 +278,25 @@ Response format:
 {{char}} *expresses emotions or actions* Says something while interacting naturally with others
 
 Guidelines:
-1. Characters should maintain their personalities and respond according to their backgrounds
-2. Natural conversation flow with characters responding to each other
+1. Characters should respond to each other in the same message
+2. Keep responses in character and maintain natural conversation flow
 3. Use *asterisks* for actions and emotions
-4. Keep the conversation engaging and dynamic
+4. Characters can react to previous messages and each other
 
 Continue conversation:`;
 
         return {
             stageDirections,
             messageState: { 
-                lastResponders: responders,
-                activeCharacters: new Set(responders),
+                lastResponders: allResponders,
+                activeCharacters: new Set(allResponders),
                 temporarilyExcluded: this.getTemporarilyExcluded()
             },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
                     { 
-                        responders,
+                        responders: allResponders,
                         messageContent: userMessage.content,
                         timestamp: Date.now()
                     }
