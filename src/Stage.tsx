@@ -550,35 +550,41 @@ IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterName
         ];
         
         let modifiedContent = botMessage.content;
+        let userContentDetected = false;
         
         // Apply all patterns to remove user dialogue and mentions
         userPatterns.forEach(pattern => {
-            modifiedContent = modifiedContent.replace(pattern, '');
+            if (pattern.test(modifiedContent)) {
+                userContentDetected = true;
+                modifiedContent = modifiedContent.replace(pattern, '');
+            }
         });
         
         // Clean up any artifacts from the removal
-        modifiedContent = modifiedContent
-            // Remove empty lines
-            .replace(/\n\s*\n\s*\n/g, '\n\n')
-            // Remove lines that only have punctuation left
-            .replace(/\n[^\w\n]*\n/g, '\n\n')
-            // Fix any double spaces
-            .replace(/  +/g, ' ')
-            // Fix any lines starting with punctuation due to removed text
-            .replace(/\n\s*[,.;:!?]/g, '\n');
+        if (userContentDetected) {
+            modifiedContent = modifiedContent
+                // Remove empty lines
+                .replace(/\n\s*\n\s*\n/g, '\n\n')
+                // Remove lines that only have punctuation left
+                .replace(/\n[^\w\n]*\n/g, '\n\n')
+                // Fix any double spaces
+                .replace(/  +/g, ' ')
+                // Fix any lines starting with punctuation due to removed text
+                .replace(/\n\s*[,.;:!?]/g, '\n');
+        }
         
         // Add the bot response to history
         const updatedHistory = [...this.responseHistory, botEntry];
         this.responseHistory = updatedHistory;
 
-        // Add stronger instructions to the beginning of the next prompt
-        const systemMessage = modifiedContent !== botMessage.content ? 
-            "Note: The system detected and removed content where the AI was speaking as the user. Please remember that only the user can speak for themselves." : null;
+        // We'll handle this internally in the next prompt instead of showing a visible message
+        // This prevents the system message from appearing to users
+        const hasUserContent = userContentDetected;
 
         return {
             modifiedMessage: modifiedContent,
             error: null,
-            systemMessage,
+            systemMessage: null, // No visible system message
             chatState: {
                 responseHistory: updatedHistory
             },
