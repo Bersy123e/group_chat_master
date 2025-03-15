@@ -331,8 +331,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Determine which characters should respond based on context
         // Not all characters need to respond to every message
         let respondingCharacterIds: string[] = [];
-        
-        // Characters mentioned by name should respond
+
+        // First, check if some characters are more relevant to the current message
+        // Characters mentioned by name should respond with highest priority
         activeChars.forEach(id => {
             const charName = this.characters[id].name.toLowerCase();
             const messageContentLower = userMessage.content.toLowerCase();
@@ -342,55 +343,141 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 respondingCharacterIds.push(id);
             }
         });
-        
-        // If no characters are specifically mentioned, select characters based on context
-        if (respondingCharacterIds.length === 0) {
-            // If it's a question, have characters with relevant knowledge respond
-            if (userMessage.content.includes('?')) {
-                // Randomly select 1-3 characters who might have knowledge on the topic
-                const numResponders = Math.floor(Math.random() * 3) + 1;
-                const shuffledChars = [...activeChars].sort(() => Math.random() - 0.5);
-                respondingCharacterIds = shuffledChars.slice(0, Math.min(numResponders, activeChars.length));
-            }
-            // If it's a short message or greeting, have 1-2 characters respond
-            else if (userMessage.content.length < 20 || /^(hi|hello|hey|greetings)/i.test(userMessage.content)) {
-                const numResponders = Math.floor(Math.random() * 2) + 1;
-                const shuffledChars = [...activeChars].sort(() => Math.random() - 0.5);
-                respondingCharacterIds = shuffledChars.slice(0, Math.min(numResponders, activeChars.length));
-            }
-            // For normal messages, allow characters to naturally engage or not engage
-            else {
-                // Some characters might be busy with their activities and not respond
-                respondingCharacterIds = activeChars.filter(id => {
-                    // If character state isn't defined, include them
-                    if (!this.characterStates[id]) {
-                        return true;
+
+        // Define character response relevance based on message content
+        type CharacterRelevance = {
+            id: string;
+            relevanceScore: number;
+        };
+
+        // Calculate relevance scores for all characters who aren't directly mentioned
+        const relevanceScores: CharacterRelevance[] = activeChars
+            .filter(id => !respondingCharacterIds.includes(id))
+            .map(id => {
+                let score = 0;
+                const char = this.characters[id];
+                const charDesc = (char.description || '').toLowerCase();
+                const messageContentLower = userMessage.content.toLowerCase();
+                
+                // Increase score if message contains keywords related to character's description
+                // This helps characters with relevant expertise respond to appropriate topics
+                const keywords = charDesc.split(/\s+/).filter(word => word.length > 4);
+                keywords.forEach(keyword => {
+                    if (messageContentLower.includes(keyword)) {
+                        score += 2;
                     }
-                    
-                    // If no current activity is set, include them
-                    if (!this.characterStates[id].currentActivity) {
-                        return true;
-                    }
-                    
-                    // Get activity and convert to lowercase safely
-                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
-                    
-                    // Characters who are conversing, listening or watching will always respond
-                    if (['conversing', 'listening', 'watching'].includes(activity)) {
-                        return true;
-                    }
-                    
-                    // Characters engaged in other activities have 50% chance to respond
-                    return Math.random() < 0.5;
                 });
                 
-                // If still too many responders, limit to avoid overwhelming response
-                if (respondingCharacterIds.length > 3) {
-                    respondingCharacterIds = respondingCharacterIds
-                        .sort(() => Math.random() - 0.5) // Shuffle
-                        .slice(0, 3); // Take up to 3
+                // Characters who were active in recent conversation get a boost
+                if (this.responseHistory.length > 0) {
+                    const recentResponders = this.responseHistory
+                        .slice(-3) // Look at last 3 messages
+                        .flatMap(entry => entry.responders);
+                        
+                    if (recentResponders.includes(id)) {
+                        score += 1; // Continuity bonus
+                    }
+                }
+                
+                // Character's current activity affects likelihood to respond
+                if (this.characterStates[id]) {
+                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
+                    
+                    // Characters who are actively conversing are more likely to respond
+                    if (['conversing', 'listening', 'watching'].includes(activity)) {
+                        score += 2;
+                    }
+                    // Characters engaged in less interactive activities are less likely to respond
+                    else if (['reading', 'writing', 'thinking'].includes(activity)) {
+                        score -= 1;
+                    }
+                    // Characters who are very disengaged are unlikely to respond
+                    else if (['sleeping', 'resting', 'away'].includes(activity)) {
+                        score -= 3;
+                    }
+                }
+                
+                return {
+                    id,
+                    relevanceScore: score
+                };
+            });
+
+        // Sort characters by relevance score
+        relevanceScores.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+        // Handle different message types
+        // If no characters are specifically mentioned, select characters based on context and relevance
+        if (respondingCharacterIds.length === 0) {
+            // If it's a question, have most relevant characters respond
+            if (userMessage.content.includes('?')) {
+                // Take top 1-3 most relevant characters for questions
+                const topResponders = relevanceScores
+                    .filter(char => char.relevanceScore > -2) // Don't include very disengaged characters
+                    .slice(0, 3); // Top 3 max
+                    
+                // Add them to responding list
+                respondingCharacterIds = topResponders.map(char => char.id);
+                
+                // Ensure at least one character responds to questions
+                if (respondingCharacterIds.length === 0 && activeChars.length > 0) {
+                    respondingCharacterIds = [activeChars[0]];
                 }
             }
+            // If it's a short message or greeting, prioritize characters who are actively conversing
+            else if (userMessage.content.length < 20 || /^(hi|hello|hey|greetings)/i.test(userMessage.content)) {
+                // Find characters who are conversing
+                const conversing = activeChars.filter(id => {
+                    if (!this.characterStates[id] || !this.characterStates[id].currentActivity) return true;
+                    const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
+                    return ['conversing', 'listening', 'watching'].includes(activity);
+                });
+                
+                // Take 1-2 characters who are engaged
+                if (conversing.length > 0) {
+                    respondingCharacterIds = conversing.slice(0, Math.min(2, conversing.length));
+                } else {
+                    // If no one is conversing, take 1-2 from active
+                    respondingCharacterIds = activeChars.slice(0, Math.min(2, activeChars.length));
+                }
+            }
+            // For normal messages, select most relevant characters
+            else {
+                // Take most relevant characters, threshold depends on message length/complexity
+                const messageComplexity = Math.min(3, Math.ceil(userMessage.content.length / 50));
+                const topResponders = relevanceScores
+                    .filter(char => char.relevanceScore > -2) // Exclude very disengaged
+                    .slice(0, messageComplexity + 1); // More complex messages can have more responders
+                    
+                respondingCharacterIds = topResponders.map(char => char.id);
+                
+                // Ensure at least one character responds for normal messages
+                if (respondingCharacterIds.length === 0 && activeChars.length > 0) {
+                    // Find character with highest engagement
+                    const mostEngaged = activeChars.find(id => {
+                        if (!this.characterStates[id] || !this.characterStates[id].currentActivity) return true;
+                        const activity = (this.characterStates[id].currentActivity || '').toLowerCase();
+                        return ['conversing', 'listening'].includes(activity);
+                    }) || activeChars[0];
+                    
+                    respondingCharacterIds = [mostEngaged];
+                }
+            }
+        }
+
+        // Apply a final balance check - very long/complex messages might warrant more responses
+        // but still limit to avoid overwhelming narratives
+        if (userMessage.content.length > 100 && respondingCharacterIds.length < Math.min(4, activeChars.length)) {
+            // Add one more responder from relevance list if available
+            const nextBestResponder = relevanceScores.find(char => !respondingCharacterIds.includes(char.id));
+            if (nextBestResponder) {
+                respondingCharacterIds.push(nextBestResponder.id);
+            }
+        }
+
+        // Ensure we don't have too many responders for short messages
+        if (userMessage.content.length < 50 && respondingCharacterIds.length > 2) {
+            respondingCharacterIds = respondingCharacterIds.slice(0, 2);
         }
         
         // More detailed character descriptions including all available information
