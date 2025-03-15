@@ -322,24 +322,17 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             .filter(msg => msg.trim() !== '')
             .join("\n\n");
 
-        // Format character information with detailed descriptions
-        const characterInfo = activeChars
+        // Simplified character descriptions - just name and personality/description
+        const characterDescriptions = activeChars
             .map(id => {
                 const char = this.characters[id];
-                return `${char.name}:
-Personality: ${char.personality || 'Not specified'}
-Description: ${char.description || 'Not specified'}
-${char.scenario ? `Current scenario: ${char.scenario}` : ''}
-Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
-            }).join("\n\n");
+                return `${char.name}: ${char.description || char.personality || 'No description available'}`;
+            }).join("\n");
             
-        // Get information about absent characters
+        // Simple list of absent characters
         const absentCharacters = this.getAvailableCharacters()
             .filter(id => !activeChars.includes(id))
-            .map(id => {
-                const char = this.characters[id];
-                return `${char.name} (${this.characterStates[id].currentActivity || 'away'})`;
-            });
+            .map(id => this.characters[id].name);
 
         // Determine if we should focus on the user's message or create an ambient scene
         // If user's message is short or a greeting, we might focus more on ambient world
@@ -350,11 +343,10 @@ Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
 
         const stageDirections = `System: You are creating a UNIFIED DYNAMIC SCENE with natural interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in a single flowing narrative.
 
-CURRENTLY PRESENT CHARACTERS (ONLY USE THESE):
-${characterInfo}
+CHARACTERS IN THE SCENE:
+${characterDescriptions}
 
-${absentCharacters.length > 0 ? `CHARACTERS CURRENTLY ABSENT (DO NOT INCLUDE THESE IN DIALOGUE):
-${absentCharacters.join(', ')}` : ''}
+${absentCharacters.length > 0 ? `CHARACTERS NOT PRESENT: ${absentCharacters.join(', ')}` : ''}
 
 CONVERSATION HISTORY:
 ${fullHistory}
@@ -365,7 +357,7 @@ CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
 2. NEVER use **{{User}}** or any variation to make the user speak. The user speaks for themselves only.
 3. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
-4. ONLY use the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
+4. Each character should act according to their unique personality and description.
 5. DO NOT include absent characters in the dialogue - they are not present in the scene.
 6. Characters may reference absent characters but absent characters CANNOT speak or act.
 7. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
