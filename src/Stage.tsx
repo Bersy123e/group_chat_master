@@ -14,7 +14,6 @@ import { LoadResponse } from "@chub-ai/stages-ts/dist/types/load";
 type MessageStateType = {
     lastResponders: string[];  // IDs of characters who responded last time
     activeCharacters: Set<string>;  // Characters currently active in the conversation
-    temporarilyExcluded: Set<string>;  // Characters temporarily out of conversation
 };
 
 /***
@@ -49,10 +48,7 @@ type ChatStateType = {
         responders: string[];  // Character IDs who responded
         messageContent?: string; // Content of the message
         timestamp: number;     // When the message was sent
-        eventContext?: string; // Context of the current event/topic
-        mood?: { [characterId: string]: string }; // Character moods/states
     }[];
-    firstMessage?: boolean;  // Flag for first message handling
 };
 
 /***
@@ -64,7 +60,6 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
     private config: ConfigType;
-    private isFirstMessage: boolean = false;
 
     constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, ConfigType>) {
         /***
@@ -98,8 +93,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 
     private selectMainResponder(message: Message): string {
         const availableChars = Object.keys(this.characters).filter(id => 
-            !this.characters[id].isRemoved && 
-            !this.getTemporarilyExcluded().has(id)
+            !this.characters[id].isRemoved
         );
         if (availableChars.length === 0) return '';
 
@@ -144,7 +138,6 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const responders = [mainResponderId];
         const availableChars = Object.keys(this.characters).filter(id => 
             !this.characters[id].isRemoved && 
-            !this.getTemporarilyExcluded().has(id) && 
             id !== mainResponderId
         );
 
@@ -162,79 +155,6 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         }
 
         return responders;
-    }
-
-    private getTemporarilyExcluded(): Set<string> {
-        const lastState = this.responseHistory[this.responseHistory.length - 1];
-        if (lastState?.mood) {
-            return new Set(
-                Object.entries(lastState.mood)
-                    .filter(([_, mood]) => 
-                        mood.includes('left') || 
-                        mood.includes('away') || 
-                        mood.includes('excluded'))
-                    .map(([id, _]) => id)
-            );
-        }
-        return new Set();
-    }
-
-    private getCharacterMood(characterId: string): string | undefined {
-        const lastState = this.responseHistory[this.responseHistory.length - 1];
-        return lastState?.mood?.[characterId];
-    }
-
-    private getCurrentEventContext(message: Message): string {
-        const recentMessages = this.responseHistory.slice(-3);
-        const keywords = new Set<string>();
-        
-        // Extract keywords from recent messages
-        recentMessages.forEach(history => {
-            if (history.messageContent) {
-                const words = history.messageContent.toLowerCase()
-                    .split(' ')
-                    .filter(word => word.length > 3);  // Filter out small words
-                words.forEach(word => keywords.add(word));
-            }
-        });
-
-        // Add current message keywords
-        if (message.content) {
-            const currentWords = message.content.toLowerCase()
-                .split(' ')
-                .filter(word => word.length > 3);
-            currentWords.forEach(word => keywords.add(word));
-        }
-
-        return Array.from(keywords).join(' ');
-    }
-
-    private analyzeRecentInteractions(): Map<string, number> {
-        const interactions = new Map<string, number>();
-        const recentHistory = this.responseHistory.slice(-10);
-
-        recentHistory.forEach((history, index) => {
-            const weight = (index + 1) / recentHistory.length; // More recent interactions have higher weight
-            history.responders.forEach(id1 => {
-                history.responders.forEach(id2 => {
-                    if (id1 !== id2) {
-                        const key = `${id1}-${id2}`;
-                        interactions.set(key, (interactions.get(key) || 0) + weight);
-                    }
-                });
-            });
-        });
-
-        return interactions;
-    }
-
-    private getLastActiveTimestamp(characterId: string): number | null {
-        for (let i = this.responseHistory.length - 1; i >= 0; i--) {
-            if (this.responseHistory[i].responders.includes(characterId)) {
-                return this.responseHistory[i].timestamp;
-            }
-        }
-        return null;
     }
 
     private calculateKeywordOverlap(keywords1: string[], keywords2: string[]): number {
@@ -257,40 +177,34 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Format character information
         const characterInfo = allResponders.map(id => {
             const char = this.characters[id];
-            const mood = this.getCharacterMood(id);
             return `${char.name}:
-${char.system_prompt ? `System prompt: ${char.system_prompt}` : ''}
-${char.post_history_instructions ? `Post history: ${char.post_history_instructions}` : ''}
-Personality: ${char.personality || 'Based on description'}
-Description: ${char.description}
-${mood ? `Current state: ${mood}` : ''}
+${char.personality || char.description}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
         }).join("\n\n");
 
-        const stageDirections = `System: This is a dynamic group conversation where characters interact naturally with each other.
+        const stageDirections = `System: This is a dynamic group conversation. Characters interact naturally while maintaining their unique personalities.
 
+Context:
 ${contextInfo}
 
-Active characters:
+Characters:
 ${characterInfo}
 
-Response format:
-{{char}} *expresses emotions or actions* Says something while interacting naturally with others
+Format: {{char=Name}} *actions* Says something
 
 Guidelines:
-1. Characters should respond to each other in the same message
-2. Keep responses in character and maintain natural conversation flow
-3. Use *asterisks* for actions and emotions
-4. Characters can react to previous messages and each other
+- Characters can respond in any order based on context
+- Stay true to personalities and scenarios
+- React to others naturally
+- Address others by name when appropriate
 
-Continue conversation:`;
+Continue the conversation:`;
 
         return {
             stageDirections,
             messageState: { 
                 lastResponders: allResponders,
-                activeCharacters: new Set(allResponders),
-                temporarilyExcluded: this.getTemporarilyExcluded()
+                activeCharacters: new Set(allResponders)
             },
             chatState: {
                 responseHistory: [
@@ -330,7 +244,6 @@ Continue conversation:`;
             this.responseHistory.push({ 
                 responders: state.lastResponders,
                 timestamp: Date.now(),
-                eventContext: '',  // Empty context for state changes
                 messageContent: ''
             });
         }
@@ -340,45 +253,14 @@ Continue conversation:`;
         if (this.responseHistory.length > 0) {
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
-
-            // Extract moods from response
-            const moodPattern = /{{char(?:=(\w+))?}}\s*\*(.*?)\*/g;
-            const moods: { [key: string]: string } = {};
-            let match;
-
-            while ((match = moodPattern.exec(botMessage.content)) !== null) {
-                const charName = match[1];
-                const mood = match[2];
-                if (charName && mood) {
-                    const charId = Object.keys(this.characters)
-                        .find(id => this.characters[id].name === charName);
-                    if (charId) {
-                        moods[charId] = mood;
-                    }
-                }
-            }
-
-            lastEntry.mood = moods;
-        }
-
-        // Clean up character tags in the response
-        let modifiedMessage = botMessage.content;
-        if (!modifiedMessage.includes('{{char}}')) {
-            const lastResponders = this.responseHistory[this.responseHistory.length - 1]?.responders || [];
-            modifiedMessage = lastResponders.map(id => {
-                const char = this.characters[id];
-                const charName = char.name;
-                return modifiedMessage.replace(new RegExp(`{{char=${charName}}}`, 'g'), '{{char}}');
-            }).join('\n\n');
         }
 
         return {
-            modifiedMessage,
+            modifiedMessage: botMessage.content,
             error: null,
             systemMessage: null,
             chatState: {
-                responseHistory: this.responseHistory,
-                firstMessage: false
+                responseHistory: this.responseHistory
             }
         };
     }
