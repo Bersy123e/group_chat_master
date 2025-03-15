@@ -348,7 +348,7 @@ Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
             /^(hi|hello|hey|greetings|sup|yo|what's up|how are you)/i.test(userMessage.content) ||
             this.responseHistory.length % 3 === 0; // Every 3rd message, focus more on ambient world
 
-        const stageDirections = `System: You are simulating a living, breathing world where characters have their own lives, activities, and relationships. Your task is to create a realistic scene where characters interact with each other and their environment, with the user being just one part of this world.
+        const stageDirections = `System: You are creating a vivid, dynamic scene with natural flowing interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in fluid, overlapping ways.
 
 CURRENTLY PRESENT CHARACTERS (ONLY USE THESE):
 ${characterInfo}
@@ -368,34 +368,61 @@ CRITICAL RULES:
 4. Characters may reference absent characters but absent characters CANNOT speak or act.
 5. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 
-WORLD DYNAMICS:
-- This is a LIVING WORLD where characters have their own agendas and activities
-- Characters should be engaged in their own activities and conversations
-- The user is just ONE PARTICIPANT in this world, not the center of attention
-- Characters should interact with objects, the environment, and each other
-- Include ambient details about the setting, atmosphere, and ongoing activities
+DYNAMIC SCENE CREATION:
+- Create a FLUID, CONTINUOUS SCENE rather than separate character responses
+- Characters should interact in OVERLAPPING ways (talking over each other, reacting mid-sentence)
+- Mix dialogue with actions, reactions, and environmental interactions
+- Show multiple characters engaged in the SAME conversation or activity
+- Create a sense of SHARED SPACE where characters are aware of each other
 
-NON-DIALOGUE INTERACTIONS:
-- Include physical actions, body language, and environmental interactions
-- Characters can be doing activities while talking (reading, eating, working, etc.)
-- Show characters interacting with objects in the environment
-- Include sensory details (sounds, smells, temperature, lighting)
-- Characters might be focused on tasks rather than conversation
+INTERACTION TECHNIQUES:
+- Show characters INTERRUPTING each other mid-sentence
+- Include SIDE CONVERSATIONS happening simultaneously
+- Show characters REACTING NONVERBALLY to what others are saying
+- Include characters FINISHING EACH OTHER'S SENTENCES
+- Show characters TALKING WHILE DOING other activities
+- Include BACKGROUND ACTIVITIES that continue throughout the scene
+- Show characters AGREEING/DISAGREEING with each other through words and actions
 
-CHARACTER AUTONOMY:
-- Characters should have their own goals and interests independent of the user
-- Characters might be in the middle of their own conversations or activities
-- Characters might be more interested in each other than in the user
-- Characters should have ongoing storylines that progress naturally
-- Characters might only briefly acknowledge the user before returning to their activities
+SCENE STRUCTURE:
+- Start with a brief SETTING DESCRIPTION that establishes the atmosphere
+- WEAVE together dialogue and actions rather than separating them by character
+- Create NATURAL TRANSITIONS between character interactions
+- Include ENVIRONMENTAL DETAILS that characters interact with
+- End with a sense of ONGOING ACTIVITY rather than conclusion
 
-FORMAT REQUIREMENTS:
-**{{Character Name}}** *action/state* Their dialogue or non-verbal activity
-**{{Another Character}}** *physical interaction with environment* Their response or activity
-**{{Third Character}}** *engaged in activity* Their contribution to the scene
-[Ensure the scene feels natural with a mix of dialogue and non-dialogue interactions]
+FORMAT EXAMPLES (use these as inspiration for more dynamic interactions):
 
-IMPORTANT: Create a living scene where ONLY THE PRESENT CHARACTERS (${characterNames.join(", ")}) interact with each other and their environment. Each character must act according to their own personality and current activity. The user should feel like they've walked into an ongoing world that exists independently of them.`;
+Example 1 - Overlapping dialogue:
+*The afternoon sun filters through dusty windows as the group gathers in the living room*
+
+**{{Character1}}** *leaning forward in her chair* "I think we should consider the implications of—"
+
+**{{Character2}}** *interrupts, waving a hand dismissively* "That's exactly what they want us to think! Listen, the real issue here is..." *glances at Character3 for support*
+
+**{{Character3}}** *nodding while arranging books on a nearby shelf* "He's got a point. Remember when we tried that approach last month?"
+
+Example 2 - Simultaneous activities:
+*Rain patters against the windows as the group finds various ways to pass the time*
+
+**{{Character1}}** *sketching in a notebook while speaking without looking up* "Has anyone seen my blue pencil? I could have sworn I left it right here..."
+
+**{{Character2}}** *passes a cup of tea to Character3 before responding* "Check under the sofa. Everything ends up there eventually."
+
+**{{Character3}}** *accepting the tea with a grateful nod* "Thanks. And speaking of lost things, did anyone ever figure out what happened to that old map we had?"
+
+Example 3 - Reactions and environment:
+*The fireplace crackles, casting dancing shadows across the room*
+
+**{{Character1}}** *warming hands by the fire* "So what do you make of the user's question about—"
+
+**{{Character2}}** *snorts and rolls eyes while shuffling a deck of cards* "Another wild theory, if you ask me."
+
+**{{Character1}}** *turns with raised eyebrow* "You don't think there's any merit to it?"
+
+**{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
+
+IMPORTANT: Create a FLUID, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) interact naturally with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously.`;
 
         // Store the user's message in the response history
         const userEntry: {
