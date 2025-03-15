@@ -164,7 +164,11 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         
         const activityPatterns = [
             /\b(reading|writing|drawing|playing|working|cooking|eating|drinking|sleeping|resting|thinking|watching|listening)\b/i,
-            /\b(busy with|occupied with|engaged in|focused on)\s+([^,.]+)/i
+            /\b(busy with|occupied with|engaged in|focused on)\s+([^,.]+)/i,
+            /\b(examining|investigating|studying|observing|contemplating)\s+([^,.]+)/i,
+            /\b(sitting|standing|leaning|lying)\s+([^,.]+)/i,
+            /\b(smiling|laughing|frowning|crying|shaking)\b/i,
+            /\b(silent|quiet|thoughtful|pensive|hesitant)\b/i
         ];
         
         // Check for characters leaving
@@ -324,6 +328,58 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             .filter(msg => msg.trim() !== '')
             .join("\n\n");
 
+        // Determine which characters should respond based on context
+        // Not all characters need to respond to every message
+        let respondingCharacterIds: string[] = [];
+        
+        // Characters mentioned by name should respond
+        activeChars.forEach(id => {
+            const charName = this.characters[id].name.toLowerCase();
+            const messageContentLower = userMessage.content.toLowerCase();
+            
+            // If character is directly addressed or mentioned
+            if (messageContentLower.includes(charName)) {
+                respondingCharacterIds.push(id);
+            }
+        });
+        
+        // If no characters are specifically mentioned, select characters based on context
+        if (respondingCharacterIds.length === 0) {
+            // If it's a question, have characters with relevant knowledge respond
+            if (userMessage.content.includes('?')) {
+                // Randomly select 1-3 characters who might have knowledge on the topic
+                const numResponders = Math.floor(Math.random() * 3) + 1;
+                const shuffledChars = [...activeChars].sort(() => Math.random() - 0.5);
+                respondingCharacterIds = shuffledChars.slice(0, Math.min(numResponders, activeChars.length));
+            }
+            // If it's a short message or greeting, have 1-2 characters respond
+            else if (userMessage.content.length < 20 || /^(hi|hello|hey|greetings)/i.test(userMessage.content)) {
+                const numResponders = Math.floor(Math.random() * 2) + 1;
+                const shuffledChars = [...activeChars].sort(() => Math.random() - 0.5);
+                respondingCharacterIds = shuffledChars.slice(0, Math.min(numResponders, activeChars.length));
+            }
+            // For normal messages, allow characters to naturally engage or not engage
+            else {
+                // Some characters might be busy with their activities and not respond
+                respondingCharacterIds = activeChars.filter(id => {
+                    // Characters engaged in focused activities have less chance to respond
+                    if (this.characterStates[id].currentActivity && 
+                        !['conversing', 'listening', 'watching'].includes(this.characterStates[id].currentActivity.toLowerCase())) {
+                        // 50% chance to respond if engaged in activity
+                        return Math.random() < 0.5;
+                    }
+                    return true;
+                });
+                
+                // If still too many responders, limit to avoid overwhelming response
+                if (respondingCharacterIds.length > 3) {
+                    respondingCharacterIds = respondingCharacterIds
+                        .sort(() => Math.random() - 0.5) // Shuffle
+                        .slice(0, 3); // Take up to 3
+                }
+            }
+        }
+        
         // More detailed character descriptions including all available information
         const characterDescriptions = activeChars
             .map(id => {
@@ -399,6 +455,14 @@ CRITICAL RULES:
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 ${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : '10. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 11. AVOID REPETITIVE ACTIONS: Do not have characters perform the same actions repeatedly (like constantly touching under the table, adjusting clothing, etc).
+12. MAINTAIN CONSISTENT FORMATTING: Use the exact same format throughout the entire response.
+
+IMPORTANT CHARACTER PARTICIPATION RULES:
+- NOT EVERY CHARACTER NEEDS TO SPEAK IN EVERY SCENE. This is critical for natural flow.
+- Some characters may be present but silent or just briefly react with a nod or gesture.
+- Characters engaged in activities (${activeChars.map(id => `${this.characters[id].name}: ${this.characterStates[id].currentActivity || 'conversing'}`).join(', ')}) may be less engaged in conversation.
+- Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
+- Limit verbose dialogue to characters who would actually be engaged based on context.
 
 USER INTERACTION RULES:
 - The user is NOT a character in your scene - they are an external entity
@@ -406,11 +470,13 @@ USER INTERACTION RULES:
 - NEVER make the user perform actions in your response
 - NEVER put words in the user's mouth
 - Characters can acknowledge or respond to the user's message, but CANNOT interact with the user physically
+- THE USER SHOULD NOT BE THE CENTRAL FOCUS OF THE CHARACTERS' INTERACTIONS
+- Characters should primarily interact with each other and the environment
 - Treat the user's message as if it came from outside the scene, like a voice from above
 
 STRICT CHARACTER USAGE:
 - ONLY use these exact characters in your response: ${characterNames.join(", ")}
-- INCLUDE ALL PRESENT CHARACTERS listed above in your response
+- NOT EVERY CHARACTER NEEDS TO SPEAK - some may be silent or just briefly react
 - NEVER include absent characters - they are completely removed from the scene
 - DO NOT create new characters or mention characters not in the list above
 - DO NOT use generic characters like "someone", "a man", "a woman", etc.
@@ -425,101 +491,32 @@ CREATING A BOOK-LIKE NARRATIVE:
 - Create a sense of SHARED SPACE where characters are aware of each other
 ${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate' : '- ESTABLISH THE SETTING and atmosphere in rich detail'}
 - MAINTAIN CONTINUITY with previous scenes and conversations
+- MAINTAIN CONSISTENT FORMATTING throughout the entire response
 
-AVOIDING REPETITIVE ACTIONS:
-- DO NOT have characters perform the same actions repeatedly
-- VARY physical interactions, gestures, and movements
-- If a character touched someone in one way, use different interactions next time
-- DIVERSIFY environmental interactions (don't just focus on the same objects)
-- CREATE PROGRESSION in the scene rather than cycling through the same actions
-- DEVELOP the narrative forward rather than repeating similar beats
-
-NARRATIVE TECHNIQUES:
-- Use varied dialogue tags (said, whispered, replied, etc.) to add variety
-- Include SENSORY DETAILS (sounds, smells, textures) to enrich the scene
-- Show characters REACTING NONVERBALLY to what others are saying
-- Include moments of INTERNAL THOUGHTS or EMOTIONS for characters
-- Show characters engaged in MEANINGFUL ACTIVITIES related to the setting
-- Include ENVIRONMENTAL DETAILS that characters interact with
-- Have characters REFERENCE SHARED MEMORIES or past events from the conversation history
-
-SCENE STRUCTURE:
-- Start with a brief SETTING DESCRIPTION that establishes the atmosphere
-- WEAVE together dialogue and actions from ALL PRESENT CHARACTERS
-- Create NATURAL TRANSITIONS between character interactions
-- Include ENVIRONMENTAL DETAILS that characters interact with
-- End with a sense of ONGOING ACTIVITY rather than conclusion
-- MAINTAIN CONTINUITY with previous scenes and conversations
-
-RESPONSE FORMAT:
-- Use *italics* for describing actions, settings, and non-dialogue elements
-- Use **{{Character Name}}** to indicate the speaking character
-- NEVER use **{{User}}** or any variation - the user is not a character
-- Combine actions and dialogue from ALL PRESENT CHARACTERS into a single narrative flow
-- Format dialogue with proper quotation marks and attribution
-- DO NOT separate responses by character - create a UNIFIED NARRATIVE with ALL PRESENT CHARACTERS
-
-${isFirstMessage ? `FIRST MESSAGE EXAMPLE:
-*The afternoon sun filters through the stained glass windows of the old library, casting colorful patterns across the worn wooden floor. The scent of old books and leather bindings fills the air, mingling with the faint aroma of freshly brewed tea.*
-
-**{{Character1}}** sits in a plush armchair by the window, her fingers tracing the embossed cover of an ancient tome. She looks up as the door creaks open, a smile warming her features. "Did you hear that? I think someone's trying to reach us."
-
-**{{Character2}}** pauses in his organization of scrolls on the far shelf, adjusting his spectacles as he turns toward the sound. "Indeed. How curious." He steps down from the small ladder, dusting his hands on his vest. "We don't get many visitors these days."
-
-*A gentle breeze stirs the pages of an open book on the central table, almost as if in response to the newcomer's presence.*
-
-**{{Character3}}** emerges from between two tall bookshelves, a steaming cup cradled in her hands. "Well, don't just stand there looking puzzled," she says with a light laugh. "Let's see what they want." She sets her cup down and moves toward the center of the room, her eyes bright with curiosity.
-
-` : `EXAMPLES OF NARRATIVE STYLE:
-
-Example 1 - Natural dialogue and varied interactions:
-*The afternoon sun filters through dusty windows as the group gathers in the living room. The air is thick with unspoken tension.*
-
-**{{Character1}}** leans forward in her chair, her fingers drumming against the armrest. "I think we should consider the implications of—"
-
-**{{Character2}}** interrupts, waving a hand dismissively. "That's exactly what they want us to think! Listen, the real issue here is..." He glances at Character3 for support, his eyebrows raised expectantly.
-
-*A clock ticks loudly in the corner, marking the uncomfortable silence.*
-
-**{{Character3}}** nods while arranging books on a nearby shelf, her movements deliberate and measured. "He's got a point. Remember when we tried that approach last month? The results were... less than ideal."
-
-Example 2 - Environmental interaction and character development:
-*Rain patters against the windows, creating a soothing rhythm that contrasts with the nervous energy in the room. The scent of fresh coffee mingles with the musty smell of old books.*
-
-**{{Character1}}** sketches in a notebook, her pencil moving in quick, confident strokes. Without looking up, she asks, "Has anyone seen my blue pencil? I could have sworn I left it right here..."
-
-*The floorboards creak as Character2 crosses the room, his shadow falling across Character1's drawing.*
-
-**{{Character2}}** passes a steaming cup to Character3 before responding. "Check under the sofa. Everything ends up there eventually." His voice carries a hint of amusement, a private joke between old friends.
-
-**{{Character3}}** accepts the cup with a grateful smile, inhaling the rich aroma. "Thanks. And speaking of lost things, did anyone ever figure out what happened to that old map we had? The one with the strange markings along the eastern border?"
-`}
-
-IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where ALL PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include ALL PRESENT characters listed above in your response. STRICTLY EXCLUDE any absent characters completely. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
+IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. NOT EVERY CHARACTER NEEDS TO SPEAK - some may just react briefly or remain silent based on their current activity and the context. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above. MAINTAIN CONSISTENT FORMATTING throughout.`;
 
         // Store the user's message in the response history
-        const userEntry: {
-            responders: string[];
-            messageContent?: string;
-            timestamp: number;
-        } = { 
-            responders: [],  // Empty array indicates user message
+        const userEntry: ChatStateType['responseHistory'][0] = {
+            responders: [],
             messageContent: userMessage.content,
             timestamp: Date.now()
         };
-
+        
+        this.responseHistory = [
+            ...this.responseHistory,
+            userEntry
+        ];
+        
         return {
             stageDirections,
-            messageState: { 
-                lastResponders: activeChars,
+            messageState: {
+                // Pass which characters should respond based on context
+                lastResponders: respondingCharacterIds,
                 activeCharacters: new Set(activeChars),
                 characterStates: this.characterStates
             },
             chatState: {
-                responseHistory: [
-                    ...this.responseHistory,
-                    userEntry
-                ]
+                responseHistory: this.responseHistory
             }
         };
     }
@@ -568,108 +565,27 @@ IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where ALL PRESENT characters ($
             responders: string[];
             messageContent?: string;
             timestamp: number;
-        } = { 
-            responders: [],  // We'll extract participants below
+        } = {
+            responders: this.characterStates ? 
+                Object.keys(this.characterStates).filter(id => this.characterStates[id].isPresent) : 
+                [],
             messageContent: botMessage.content,
             timestamp: Date.now()
         };
-
-        // Extract all participating characters
-        const charPattern = /\*\*{{([^}]+)}}\*\*/g;
-        const participants = new Set<string>();
-        let match;
         
-        while ((match = charPattern.exec(botMessage.content)) !== null) {
-            const charName = match[1];
-            // Skip if this is a user mention
-            if (/^(User|user|YOU|You)$/.test(charName)) {
-                continue;
-            }
-            
-            const charId = Object.keys(this.characters)
-                .find(id => this.characters[id].name === charName);
-            if (charId) {
-                participants.add(charId);
-                
-                // Update character state to ensure they're marked as present
-                if (this.characterStates[charId]) {
-                    this.characterStates[charId].isPresent = true;
-                    this.characterStates[charId].lastSeen = Date.now();
-                    this.characterStates[charId].currentActivity = 'conversing';
-                }
-            }
-        }
-
-        // Verify that no absent characters were included
-        const activeChars = this.getActiveCharacters();
-        const absentChars = this.getAvailableCharacters().filter(id => !activeChars.includes(id));
-        
-        // Check if any absent characters were incorrectly included
-        let incorrectlyIncluded = false;
-        absentChars.forEach(id => {
-            if (participants.has(id)) {
-                // Remove them from participants
-                participants.delete(id);
-                incorrectlyIncluded = true;
-            }
-        });
-
-        // Update responders with actual participants
-        botEntry.responders = Array.from(participants);
-
-        // Check if there are any user mentions or dialogue in the response and remove them
-        // More comprehensive pattern to catch user mentions and any dialogue attributed to the user
-        const userPatterns = [
-            /\*\*{{(?:User|user|YOU|You)}}\*\*\s*(?:\*[^*]*\*)?\s*"[^"]*"/g,  // User dialogue with action
-            /\*\*{{(?:User|user|YOU|You)}}\*\*\s*"[^"]*"/g,  // User dialogue without action
-            /\*\*{{(?:User|user|YOU|You)}}\*\*/g,  // Just user mention
-            /\*\s*(?:User|user|YOU|You)[^*]*\*/g,  // User in action descriptions
-            /\b(?:User|user|YOU|You)\s+(?:says|said|asks|asked|replies|replied|responds|responded|speaks|spoke)\b/gi  // Narrative about user speaking
+        this.responseHistory = [
+            ...this.responseHistory,
+            botEntry
         ];
         
-        let modifiedContent = botMessage.content;
-        let userContentDetected = false;
-        
-        // Apply all patterns to remove user dialogue and mentions
-        userPatterns.forEach(pattern => {
-            if (pattern.test(modifiedContent)) {
-                userContentDetected = true;
-                modifiedContent = modifiedContent.replace(pattern, '');
-            }
-        });
-        
-        // Clean up any artifacts from the removal
-        if (userContentDetected || incorrectlyIncluded) {
-            modifiedContent = modifiedContent
-                // Remove empty lines
-                .replace(/\n\s*\n\s*\n/g, '\n\n')
-                // Remove lines that only have punctuation left
-                .replace(/\n[^\w\n]*\n/g, '\n\n')
-                // Fix any double spaces
-                .replace(/  +/g, ' ')
-                // Fix any lines starting with punctuation due to removed text
-                .replace(/\n\s*[,.;:!?]/g, '\n');
-        }
-        
-        // Add the bot response to history
-        const updatedHistory = [...this.responseHistory, botEntry];
-        this.responseHistory = updatedHistory;
-
-        // We'll handle this internally in the next prompt instead of showing a visible message
-        // This prevents the system message from appearing to users
-        const hasUserContent = userContentDetected;
-
         return {
-            modifiedMessage: modifiedContent,
-            error: null,
-            systemMessage: null, // No visible system message
-            chatState: {
-                responseHistory: updatedHistory
-            },
             messageState: {
-                lastResponders: Array.from(participants),
+                lastResponders: botEntry.responders,
                 activeCharacters: new Set(this.getActiveCharacters()),
                 characterStates: this.characterStates
+            },
+            chatState: {
+                responseHistory: this.responseHistory
             }
         };
     }
