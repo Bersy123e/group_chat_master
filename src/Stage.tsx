@@ -402,13 +402,14 @@ CRITICAL RULES:
 7. STRICTLY ENFORCE ABSENCE: If a character is listed as not present, they MUST NOT appear in the scene AT ALL - no dialogue, no actions, no mentions of current activities.
 8. Characters may reference absent characters in past tense or wondering where they are, but absent characters CANNOT speak or act.
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
-${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : '10. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
+10. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 11. AVOID REPETITIVE ACTIONS: Do not have characters perform the same actions repeatedly (like constantly touching under the table, adjusting clothing, etc).
 12. MAINTAIN CONSISTENT FORMATTING: Use the exact same format throughout the entire response.
 13. CHARACTERS SHOULD FOCUS ON EACH OTHER, not just on responding to the user's message.
 14. DO NOT CREATE ANY NEW CHARACTERS - even for background roles or one-time mentions. Use only the characters listed above.
 15. NEVER imply the user is a participant in the scene. Users are external observers who can be acknowledged but not physically interacted with.
-${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate in the scene, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge and respond to the user\'s message more directly.' : ''}
+16. BEGIN THE NARRATIVE WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTIVITY. Do not default to starting with the first character in the list.
+${primaryResponders.length > 0 ? '17. While ALL CHARACTERS should participate in the scene, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge and respond to the user\'s message more directly.' : ''}
 
 IMPORTANT CHARACTER PARTICIPATION RULES:
 - ALL CHARACTERS SHOULD PARTICIPATE IN THE SCENE, but in varying degrees depending on context.
@@ -420,6 +421,9 @@ IMPORTANT CHARACTER PARTICIPATION RULES:
 }).join(', ')}) may be less verbose but should still be part of the scene.
 - Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
 - AVOID having just one character dominate the entire scene - create a balanced, dynamic interaction.
+- BEGIN YOUR RESPONSE WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER, not necessarily the first character in the list. If a character was directly addressed or is most relevant to the topic, they should typically respond first.
+${primaryResponders.length > 0 ? `- THE FIRST RESPONSE SHOULD TYPICALLY COME FROM ONE OF THE DIRECTLY ADDRESSED CHARACTERS: ${primaryResponders.map(id => this.characters[id].name).join(", ")}` : ''}
+- The opening of the scene can also be a general environmental description before any character speaks, if appropriate.
 
 CHARACTER INTERACTION RULES:
 - Characters should ACTIVELY INTERACT WITH EACH OTHER, not just respond to the user
@@ -468,6 +472,7 @@ RESPONSE FORMAT:
 - Characters can react to others within the same turn (e.g., **Character** *raises an eyebrow at Other Character's comment* "I'm not sure that's right.")
 - Multiple characters can interact in sequence without the user's intervention
 - Descriptions of the environment and scene setting should be in *italics* without character attribution
+- The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
 - CONSISTENTLY use this format throughout the entire response
 
 IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. NOT EVERY CHARACTER NEEDS TO SPEAK - some may just react briefly or remain silent based on their current activity and the context. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above. MAINTAIN CONSISTENT FORMATTING throughout.`;
