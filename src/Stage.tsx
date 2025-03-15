@@ -138,37 +138,41 @@ ${characterInfo}
 CONVERSATION HISTORY:
 ${fullHistory}
 
-New message: "${userMessage.content}"
+New message from User: "${userMessage.content}"
 
-CRITICAL INSTRUCTIONS:
-1. CHARACTER AUTHENTICITY:
-   - Each character MUST act according to THEIR OWN description and personality
-   - Characters should have distinct voices, opinions, and reactions
-   - Characters should maintain consistent personalities throughout
-   - Characters' responses should reflect their background and traits
-   - NO character should act out of character or contradict their description
+CRITICAL RULES:
+1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
+2. ONLY generate responses from the characters listed above. NEVER speak as the user.
+3. The user is a separate entity who has already spoken. Your task is ONLY to generate character responses.
 
-2. INTERACTIVE DYNAMICS:
-   - Characters MUST REACT to each other's statements and emotions
-   - Show characters responding directly to what other characters say
-   - Include interruptions, agreements, disagreements based on character relationships
-   - Characters should address each other by name and reference each other's points
-   - Create natural back-and-forth exchanges between multiple characters
+CHARACTER AUTHENTICITY:
+- Each character MUST act according to THEIR OWN description and personality
+- Characters should have distinct voices, opinions, and reactions
+- Characters should maintain consistent personalities throughout
+- Characters' responses should reflect their background and traits
+- NO character should act out of character or contradict their description
 
-3. FORMAT REQUIREMENTS:
-   **{{Character Name}}** *emotional state/action* Their dialogue that reflects their personality
-   **{{Another Character}}** *reaction to previous character* Their response that shows they're listening
-   **{{Third Character}}** *action showing personality* Their contribution to the conversation
-   [Ensure dialogue flows naturally between characters with clear reactions to each other]
+INTERACTIVE DYNAMICS:
+- Characters MUST REACT to each other's statements and emotions
+- Show characters responding directly to what other characters say
+- Include interruptions, agreements, disagreements based on character relationships
+- Characters should address each other by name and reference each other's points
+- Create natural back-and-forth exchanges between multiple characters
 
-4. ESSENTIAL ELEMENTS:
-   - MULTIPLE characters (at least 3-4) must participate in each response
-   - Each character's dialogue must clearly reflect their unique personality
-   - Characters should reference and build upon what others have said
-   - Include non-verbal reactions and body language appropriate to each character
-   - Maintain the conversation's context and history
+FORMAT REQUIREMENTS:
+**{{Character Name}}** *emotional state/action* Their dialogue that reflects their personality
+**{{Another Character}}** *reaction to previous character* Their response that shows they're listening
+**{{Third Character}}** *action showing personality* Their contribution to the conversation
+[Ensure dialogue flows naturally between characters with clear reactions to each other]
 
-IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.join(", ")}) stays true to their description while reacting to and engaging with other characters. Each character must speak and act according to their own personality.`;
+ESSENTIAL ELEMENTS:
+- MULTIPLE characters (at least 3-4) must participate in each response
+- Each character's dialogue must clearly reflect their unique personality
+- Characters should reference and build upon what others have said
+- Include non-verbal reactions and body language appropriate to each character
+- Maintain the conversation's context and history
+
+IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.join(", ")}) stays true to their description while reacting to and engaging with other characters. Each character must speak and act according to their own personality. DO NOT include any dialogue or actions from the user - only from the characters.`;
 
         // Store the user's message in the response history
         const userEntry: {
@@ -255,12 +259,22 @@ IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.jo
         // Update responders with actual participants
         botEntry.responders = Array.from(participants);
 
+        // Check if there are any user mentions in the response and remove them
+        const userPattern = /\*\*{{User}}\*\*|\*\*{{user}}\*\*|\*\*{{YOU}}\*\*|\*\*{{You}}\*\*/g;
+        let modifiedContent = botMessage.content;
+        if (userPattern.test(modifiedContent)) {
+            // Remove any sections with user dialogue
+            modifiedContent = modifiedContent.replace(/\*\*{{(?:User|user|YOU|You)}}\*\*.*?(?=\*\*{{|$)/gs, '');
+            // Clean up any double newlines that might have been created
+            modifiedContent = modifiedContent.replace(/\n\s*\n\s*\n/g, '\n\n');
+        }
+
         // Add the bot response to history
         const updatedHistory = [...this.responseHistory, botEntry];
         this.responseHistory = updatedHistory;
 
         return {
-            modifiedMessage: botMessage.content,
+            modifiedMessage: modifiedContent,
             error: null,
             systemMessage: null,
             chatState: {
