@@ -363,11 +363,12 @@ New message from User: "${userMessage.content}"
 
 CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
-2. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
-3. ONLY use the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
-4. DO NOT include absent characters in the dialogue - they are not present in the scene.
-5. Characters may reference absent characters but absent characters CANNOT speak or act.
-6. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
+2. NEVER use **{{User}}** or any variation to make the user speak. The user speaks for themselves only.
+3. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
+4. ONLY use the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
+5. DO NOT include absent characters in the dialogue - they are not present in the scene.
+6. Characters may reference absent characters but absent characters CANNOT speak or act.
+7. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
 
 CREATING A UNIFIED DYNAMIC SCENE:
 - Create a SINGLE FLUID SCENE rather than separate character responses
@@ -395,6 +396,7 @@ SCENE STRUCTURE:
 RESPONSE FORMAT:
 - Use *italics* for describing actions and settings
 - Use **{{Character Name}}** to indicate the speaking character
+- NEVER use **{{User}}** or any variation - the user is not a character
 - Combine actions and dialogue into a single narrative flow
 - DO NOT separate responses by character - create a UNIFIED SCENE
 
@@ -421,7 +423,7 @@ Example 2 - Simultaneous activities:
 Example 3 - Reactions and environment:
 *The fireplace crackles, casting dancing shadows across the room*
 
-**{{Character1}}** *warming hands by the fire* "So what do you make of the user's question about—"
+**{{Character1}}** *warming hands by the fire* "So what do you make of the question about—"
 
 **{{Character2}}** *snorts and rolls eyes while shuffling a deck of cards* "Another wild theory, if you ask me."
 
@@ -429,7 +431,7 @@ Example 3 - Reactions and environment:
 
 **{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
 
-IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously.`;
+IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response.`;
 
         // Store the user's message in the response history
         const userEntry: {
@@ -515,6 +517,11 @@ IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterName
         
         while ((match = charPattern.exec(botMessage.content)) !== null) {
             const charName = match[1];
+            // Skip if this is a user mention
+            if (/^(User|user|YOU|You)$/.test(charName)) {
+                continue;
+            }
+            
             const charId = Object.keys(this.characters)
                 .find(id => this.characters[id].name === charName);
             if (charId) {
@@ -532,24 +539,46 @@ IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where the characters (${characterName
         // Update responders with actual participants
         botEntry.responders = Array.from(participants);
 
-        // Check if there are any user mentions in the response and remove them
-        const userPattern = /\*\*{{User}}\*\*|\*\*{{user}}\*\*|\*\*{{YOU}}\*\*|\*\*{{You}}\*\*/g;
+        // Check if there are any user mentions or dialogue in the response and remove them
+        // More comprehensive pattern to catch user mentions and any dialogue attributed to the user
+        const userPatterns = [
+            /\*\*{{(?:User|user|YOU|You)}}\*\*\s*(?:\*[^*]*\*)?\s*"[^"]*"/g,  // User dialogue with action
+            /\*\*{{(?:User|user|YOU|You)}}\*\*\s*"[^"]*"/g,  // User dialogue without action
+            /\*\*{{(?:User|user|YOU|You)}}\*\*/g,  // Just user mention
+            /\*\s*(?:User|user|YOU|You)[^*]*\*/g,  // User in action descriptions
+            /\b(?:User|user|YOU|You)\s+(?:says|said|asks|asked|replies|replied|responds|responded|speaks|spoke)\b/gi  // Narrative about user speaking
+        ];
+        
         let modifiedContent = botMessage.content;
-        if (userPattern.test(modifiedContent)) {
-            // Remove any sections with user dialogue
-            modifiedContent = modifiedContent.replace(/\*\*{{(?:User|user|YOU|You)}}\*\*.*?(?=\*\*{{|$)/gs, '');
-            // Clean up any double newlines that might have been created
-            modifiedContent = modifiedContent.replace(/\n\s*\n\s*\n/g, '\n\n');
-        }
-
+        
+        // Apply all patterns to remove user dialogue and mentions
+        userPatterns.forEach(pattern => {
+            modifiedContent = modifiedContent.replace(pattern, '');
+        });
+        
+        // Clean up any artifacts from the removal
+        modifiedContent = modifiedContent
+            // Remove empty lines
+            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            // Remove lines that only have punctuation left
+            .replace(/\n[^\w\n]*\n/g, '\n\n')
+            // Fix any double spaces
+            .replace(/  +/g, ' ')
+            // Fix any lines starting with punctuation due to removed text
+            .replace(/\n\s*[,.;:!?]/g, '\n');
+        
         // Add the bot response to history
         const updatedHistory = [...this.responseHistory, botEntry];
         this.responseHistory = updatedHistory;
 
+        // Add stronger instructions to the beginning of the next prompt
+        const systemMessage = modifiedContent !== botMessage.content ? 
+            "Note: The system detected and removed content where the AI was speaking as the user. Please remember that only the user can speak for themselves." : null;
+
         return {
             modifiedMessage: modifiedContent,
             error: null,
-            systemMessage: null,
+            systemMessage,
             chatState: {
                 responseHistory: updatedHistory
             },
