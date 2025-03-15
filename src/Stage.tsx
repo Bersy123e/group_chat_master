@@ -541,6 +541,9 @@ CRITICAL RULES:
 ${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : '10. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 11. AVOID REPETITIVE ACTIONS: Do not have characters perform the same actions repeatedly (like constantly touching under the table, adjusting clothing, etc).
 12. MAINTAIN CONSISTENT FORMATTING: Use the exact same format throughout the entire response.
+13. CHARACTERS SHOULD FOCUS ON EACH OTHER, not just on responding to the user's message.
+14. DO NOT CREATE ANY NEW CHARACTERS - even for background roles or one-time mentions. Use only the characters listed above.
+15. NEVER imply the user is a participant in the scene. Users are external observers who can be acknowledged but not physically interacted with.
 
 IMPORTANT CHARACTER PARTICIPATION RULES:
 - NOT EVERY CHARACTER NEEDS TO SPEAK IN EVERY SCENE. This is critical for natural flow.
@@ -552,6 +555,16 @@ IMPORTANT CHARACTER PARTICIPATION RULES:
 }).join(', ')}) may be less engaged in conversation.
 - Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
 - Limit verbose dialogue to characters who would actually be engaged based on context.
+
+CHARACTER INTERACTION RULES:
+- Characters should ACTIVELY INTERACT WITH EACH OTHER, not just respond to the user
+- Include internal thoughts and reflections about what other characters say or do
+- Characters can ask each other questions, challenge each other's ideas, or build on what others said
+- Show characters REACTING to each other's statements within the same response
+- Characters should have their own opinions, agreements, and disagreements with each other
+- Create DYNAMIC GROUP INTERACTIONS where multiple characters participate in the same conversation thread
+- Include non-verbal reactions like facial expressions, body language, or emotional responses to others
+- Let characters interrupt or respond directly to each other's remarks when appropriate
 
 USER INTERACTION RULES:
 - The user is NOT a character in your scene - they are an external entity
@@ -583,9 +596,12 @@ ${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full his
 - MAINTAIN CONSISTENT FORMATTING throughout the entire response
 
 RESPONSE FORMAT:
-- Use **{{Character Name}}** to indicate who is speaking or acting
-- Use *italics* for thoughts, actions, and descriptions (e.g., **{{Character}}** *walks slowly to the window*)
-- Use "quotes" for dialogue (e.g., **{{Character}}** "This is what I think about that.")
+- Use **Character Name** to indicate who is speaking or acting
+- Use *italics* for thoughts, actions, and descriptions (e.g., **Character** *walks slowly to the window*)
+- Use "quotes" for dialogue (e.g., **Character** "This is what I think about that.")
+- Characters can have internal thoughts about what others say (e.g., **Character** *thinks to herself about what Other Character just said*)
+- Characters can react to others within the same turn (e.g., **Character** *raises an eyebrow at Other Character's comment* "I'm not sure that's right.")
+- Multiple characters can interact in sequence without the user's intervention
 - Descriptions of the environment and scene setting should be in *italics* without character attribution
 - CONSISTENTLY use this format throughout the entire response
 
