@@ -102,7 +102,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     private buildCharacterPrompt(
         charId: string,
         userMessage: Message,
-        recentHistory: string,
+        chatHistory: string,
         otherResponses: string[]
     ): string {
         const char = this.characters[charId];
@@ -114,12 +114,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         if (char.description) {
             prompt += `Your description: ${char.description}\n`;
         }
-        if (char.scenario) {
-            prompt += `Current scenario: ${char.scenario}\n`;
-        }
-
-        if (recentHistory) {
-            prompt += `\nRecent chat history:\n${recentHistory}\n`;
+        
+        if (chatHistory) {
+            prompt += `\nFull chat history:\n${chatHistory}\n`;
         }
 
         prompt += `\nUser's message: ${userMessage.content}\n`;
