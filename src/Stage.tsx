@@ -14,6 +14,12 @@ import { LoadResponse } from "@chub-ai/stages-ts/dist/types/load";
 type MessageStateType = {
     lastResponders: string[];  // IDs of characters who responded last time
     activeCharacters: Set<string>;  // Characters currently active in the conversation
+    characterStates: {[key: string]: {
+        isPresent: boolean;     // Whether the character is present in the scene
+        currentActivity?: string; // What the character is currently doing
+        location?: string;      // Where the character currently is
+        lastSeen?: number;      // Timestamp when character was last active
+    }};  // Dynamic states of characters
 };
 
 /***
@@ -48,6 +54,7 @@ type ChatStateType = {
 export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, undefined> {
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
+    private characterStates: MessageStateType['characterStates'] = {};
 
     constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, undefined>) {
         /***
@@ -58,14 +65,38 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
          User at @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/user.ts
          ***/
         super(data);
-        const { characters, chatState } = data;
+        const { characters, chatState, messageState } = data;
         
         this.characters = characters;
         this.responseHistory = chatState?.responseHistory || [];
+        
+        // Initialize character states if they don't exist
+        if (messageState?.characterStates) {
+            this.characterStates = messageState.characterStates;
+        } else {
+            // Initialize all characters as present by default
+            Object.keys(characters).forEach(id => {
+                if (!characters[id].isRemoved) {
+                    this.characterStates[id] = {
+                        isPresent: true,
+                        currentActivity: 'conversing',
+                        location: 'main area',
+                        lastSeen: Date.now()
+                    };
+                }
+            });
+        }
     }
 
     private getAvailableCharacters(): string[] {
         return Object.keys(this.characters).filter(id => !this.characters[id].isRemoved);
+    }
+
+    private getActiveCharacters(): string[] {
+        // Get characters who are currently present in the scene
+        return Object.keys(this.characterStates).filter(id => 
+            !this.characters[id].isRemoved && this.characterStates[id].isPresent
+        );
     }
 
     private buildCharacterPrompt(
@@ -101,11 +132,142 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         return prompt;
     }
 
-    async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+    private updateCharacterStates(messageContent: string): void {
+        const now = Date.now();
         const availableChars = this.getAvailableCharacters();
         
+        // Update last seen for all characters who participated
+        Object.keys(this.characterStates).forEach(id => {
+            if (this.characterStates[id].isPresent) {
+                this.characterStates[id].lastSeen = now;
+            }
+        });
+        
+        // Look for context clues about character movements
+        const leavePatterns = [
+            /\b(leaves|left|exited|departed|walked out|gone|went away)\b/i,
+            /\bgoing to\s+([^,.]+)/i,
+            /\bheaded (to|towards)\s+([^,.]+)/i
+        ];
+        
+        const returnPatterns = [
+            /\b(returns|returned|came back|arrived|entered|appeared)\b/i,
+            /\bjoined\s+([^,.]+)/i
+        ];
+        
+        const privatePatterns = [
+            /\bprivate\s+([^,.]+)/i,
+            /\balone with\s+([^,.]+)/i,
+            /\bin private\b/i,
+            /\bjust the two of us\b/i
+        ];
+        
+        // Check for characters leaving
+        availableChars.forEach(id => {
+            const charName = this.characters[id].name.toLowerCase();
+            
+            // Check if character is mentioned as leaving
+            leavePatterns.forEach(pattern => {
+                const leaveRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                if (leaveRegex.test(messageContent)) {
+                    this.characterStates[id] = {
+                        ...this.characterStates[id],
+                        isPresent: false,
+                        lastSeen: now
+                    };
+                    
+                    // Try to extract where they went
+                    const matches = messageContent.match(leaveRegex);
+                    if (matches && matches[1]) {
+                        this.characterStates[id].currentActivity = `went to ${matches[1]}`;
+                        this.characterStates[id].location = matches[1];
+                    } else {
+                        this.characterStates[id].currentActivity = 'away';
+                    }
+                }
+            });
+            
+            // Check if character is mentioned as returning
+            returnPatterns.forEach(pattern => {
+                const returnRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                if (returnRegex.test(messageContent)) {
+                    this.characterStates[id] = {
+                        ...this.characterStates[id],
+                        isPresent: true,
+                        currentActivity: 'conversing',
+                        location: 'main area',
+                        lastSeen: now
+                    };
+                }
+            });
+        });
+        
+        // Check for private conversations
+        privatePatterns.forEach(pattern => {
+            const privateMatch = messageContent.match(pattern);
+            if (privateMatch) {
+                // Make most characters temporarily absent for private conversation
+                availableChars.forEach(id => {
+                    const charName = this.characters[id].name.toLowerCase();
+                    // If character is not mentioned in private conversation, mark as absent
+                    if (!messageContent.toLowerCase().includes(charName)) {
+                        this.characterStates[id] = {
+                            ...this.characterStates[id],
+                            isPresent: false,
+                            currentActivity: 'giving privacy',
+                            lastSeen: now
+                        };
+                    }
+                });
+            }
+        });
+        
+        // Randomly have characters leave or return based on time (for more dynamic world)
+        const randomChance = 0.1; // 10% chance per message
+        if (Math.random() < randomChance) {
+            const randomCharId = availableChars[Math.floor(Math.random() * availableChars.length)];
+            if (randomCharId) {
+                const isCurrentlyPresent = this.characterStates[randomCharId].isPresent;
+                
+                // If present, might leave
+                if (isCurrentlyPresent) {
+                    const activities = ['getting a drink', 'checking something', 'taking a break', 'attending to something'];
+                    const randomActivity = activities[Math.floor(Math.random() * activities.length)];
+                    
+                    this.characterStates[randomCharId] = {
+                        ...this.characterStates[randomCharId],
+                        isPresent: false,
+                        currentActivity: randomActivity,
+                        lastSeen: now
+                    };
+                } 
+                // If absent, might return
+                else {
+                    // Only return if they've been gone for a while
+                    const timeGone = now - (this.characterStates[randomCharId].lastSeen || 0);
+                    if (timeGone > 2 * 60 * 1000) { // 2 minutes
+                        this.characterStates[randomCharId] = {
+                            ...this.characterStates[randomCharId],
+                            isPresent: true,
+                            currentActivity: 'conversing',
+                            location: 'main area',
+                            lastSeen: now
+                        };
+                    }
+                }
+            }
+        }
+    }
+
+    async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+        // Update character states based on message content
+        this.updateCharacterStates(userMessage.content);
+        
+        // Get characters who are currently present
+        const activeChars = this.getActiveCharacters();
+        
         // Get character names for explicit reference
-        const characterNames = availableChars.map(id => this.characters[id].name);
+        const characterNames = activeChars.map(id => this.characters[id].name);
         
         // Format full chat history for context
         // We'll use the entire history stored in responseHistory
@@ -121,19 +283,31 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             .join("\n\n");
 
         // Format character information with detailed descriptions
-        const characterInfo = availableChars
+        const characterInfo = activeChars
             .map(id => {
                 const char = this.characters[id];
                 return `${char.name}:
 Personality: ${char.personality || 'Not specified'}
 Description: ${char.description || 'Not specified'}
-${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
+${char.scenario ? `Current scenario: ${char.scenario}` : ''}
+Current status: ${this.characterStates[id].currentActivity || 'conversing'}`;
             }).join("\n\n");
+            
+        // Get information about absent characters
+        const absentCharacters = this.getAvailableCharacters()
+            .filter(id => !activeChars.includes(id))
+            .map(id => {
+                const char = this.characters[id];
+                return `${char.name} (${this.characterStates[id].currentActivity || 'away'})`;
+            });
 
-        const stageDirections = `System: You are facilitating a group conversation where EACH CHARACTER acts according to their own unique personality and description, while reacting to and interacting with other characters. Your task is to create a realistic group dynamic where characters respond to each other naturally.
+        const stageDirections = `System: You are facilitating a dynamic group conversation where characters come and go naturally, just like in real life. Your task is to create a realistic group dynamic where only the currently present characters interact with each other.
 
-CHARACTERS (ONLY USE THESE - EACH MUST STAY TRUE TO THEIR DESCRIPTION):
+CURRENTLY PRESENT CHARACTERS (ONLY USE THESE):
 ${characterInfo}
+
+${absentCharacters.length > 0 ? `CHARACTERS CURRENTLY ABSENT (DO NOT INCLUDE THESE IN DIALOGUE):
+${absentCharacters.join(', ')}` : ''}
 
 CONVERSATION HISTORY:
 ${fullHistory}
@@ -142,8 +316,16 @@ New message from User: "${userMessage.content}"
 
 CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
-2. ONLY generate responses from the characters listed above. NEVER speak as the user.
-3. The user is a separate entity who has already spoken. Your task is ONLY to generate character responses.
+2. ONLY generate responses from the CURRENTLY PRESENT characters listed above. NEVER speak as the user.
+3. DO NOT include absent characters in the dialogue - they are not present in the scene.
+4. Characters may reference absent characters ("I wonder where X went") but absent characters CANNOT speak.
+
+WORLD DYNAMICS:
+- Characters naturally come and go from conversations
+- Characters have their own lives and activities outside the main conversation
+- The environment feels like a living, breathing space where people move around
+- Characters might mention what absent characters are doing or where they went
+- Characters might notice when others leave or return to the conversation
 
 CHARACTER AUTHENTICITY:
 - Each character MUST act according to THEIR OWN description and personality
@@ -165,14 +347,7 @@ FORMAT REQUIREMENTS:
 **{{Third Character}}** *action showing personality* Their contribution to the conversation
 [Ensure dialogue flows naturally between characters with clear reactions to each other]
 
-ESSENTIAL ELEMENTS:
-- MULTIPLE characters (at least 3-4) must participate in each response
-- Each character's dialogue must clearly reflect their unique personality
-- Characters should reference and build upon what others have said
-- Include non-verbal reactions and body language appropriate to each character
-- Maintain the conversation's context and history
-
-IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.join(", ")}) stays true to their description while reacting to and engaging with other characters. Each character must speak and act according to their own personality. DO NOT include any dialogue or actions from the user - only from the characters.`;
+IMPORTANT: Create a group conversation where ONLY THE PRESENT CHARACTERS (${characterNames.join(", ")}) interact with each other. Each character must speak and act according to their own personality. DO NOT include any dialogue from absent characters or the user.`;
 
         // Store the user's message in the response history
         const userEntry: {
@@ -188,8 +363,9 @@ IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.jo
         return {
             stageDirections,
             messageState: { 
-                lastResponders: availableChars,
-                activeCharacters: new Set(availableChars)
+                lastResponders: activeChars,
+                activeCharacters: new Set(activeChars),
+                characterStates: this.characterStates
             },
             chatState: {
                 responseHistory: [
@@ -228,9 +404,17 @@ IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.jo
                 messageContent: ''
             });
         }
+        
+        // Update character states
+        if (state?.characterStates) {
+            this.characterStates = state.characterStates;
+        }
     }
 
     async afterResponse(botMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+        // Update character states based on the response
+        this.updateCharacterStates(botMessage.content);
+        
         // Store the bot's response in the response history
         const botEntry: {
             responders: string[];
@@ -253,6 +437,13 @@ IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.jo
                 .find(id => this.characters[id].name === charName);
             if (charId) {
                 participants.add(charId);
+                
+                // Update character state to ensure they're marked as present
+                if (this.characterStates[charId]) {
+                    this.characterStates[charId].isPresent = true;
+                    this.characterStates[charId].lastSeen = Date.now();
+                    this.characterStates[charId].currentActivity = 'conversing';
+                }
             }
         }
 
@@ -279,6 +470,11 @@ IMPORTANT: Create a group conversation where EACH CHARACTER (${characterNames.jo
             systemMessage: null,
             chatState: {
                 responseHistory: updatedHistory
+            },
+            messageState: {
+                lastResponders: Array.from(participants),
+                activeCharacters: new Set(this.getActiveCharacters()),
+                characterStates: this.characterStates
             }
         };
     }
