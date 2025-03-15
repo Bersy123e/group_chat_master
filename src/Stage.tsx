@@ -45,11 +45,11 @@ type ChatStateType = {
  If you want to rename it, be sure to modify App.js as well.
  @link https://github.com/CharHubAI/chub-stages-ts/blob/main/src/types/stage.ts
  ***/
-export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, void> {
+export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateType, undefined> {
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
 
-    constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, void>) {
+    constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, undefined>) {
         /***
          This is the first thing called in the stage,
          to create an instance of it.
