@@ -30,23 +30,6 @@
 # The schema of any user-supplied config.
 # If your stage requires a configuration but has no
 #   defined schema, it won't work.
-config_schema:
-  type: "object"
-  properties:
-    maxResponders:
-      type: "integer"
-      default: 5
-      minimum: 2
-      maximum: 15
-      description: "Maximum number of characters that can respond"
-    chainProbability:
-      type: "integer"
-      default: 50
-      minimum: 10
-      maximum: 100
-      description: "Probability of chain responses"
-  required: ["maxResponders", "chainProbability"]
-  additionalProperties: false
 
 # The schema of the state that you store.
 # This isn't needed even if you do store state,
