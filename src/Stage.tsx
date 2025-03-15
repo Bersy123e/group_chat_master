@@ -127,7 +127,7 @@ Description: ${char.description || 'Not specified'}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        const stageDirections = `System: You are facilitating a group chat conversation between characters who have their own agency, personalities, and relationships. Your task is to generate a natural flowing dialogue that emerges organically from the characters' personalities and the ongoing context.
+        const stageDirections = `System: You are simulating a living, dynamic world with characters who have their own lives, motivations, and relationships. Your task is to generate a realistic, dynamic scene where characters interact naturally, sometimes interrupting each other, with their own ongoing storylines.
 
 Available Characters:
 ${characterInfo}
@@ -138,32 +138,40 @@ ${fullHistory}
 Current Context:
 A new message has arrived: "${userMessage.content}"
 
-Instructions:
-1. Let the characters determine their own responses based primarily on:
-   - The ongoing conversation context
-   - Their established personalities and descriptions
-   - Their natural relationships with other characters
-   - Their own agency and motivations
+IMPORTANT INSTRUCTIONS:
+1. Create a DYNAMIC LIVING WORLD where:
+   - Characters have their own ongoing lives and concerns
+   - The user is just ONE participant in this world, NOT the center of attention
+   - Characters may be in the middle of their own conversations or activities
+   - Characters have pre-existing relationships and tensions
 
-2. Character Independence Guidelines:
-   - Characters should primarily respond to the CONTEXT, not just the user's message
-   - Characters should determine their own roles and relationships based on their descriptions
-   - Characters may choose to ignore the user's message if it doesn't align with their personality
-   - Characters should have agency to introduce new topics or shift the conversation
-   - Not all characters need to respond to every message
+2. Dynamic Interaction Guidelines:
+   - Characters can and SHOULD INTERRUPT EACH OTHER mid-sentence using "—" dash
+   - Show overlapping dialogue with characters talking over each other
+   - Include mid-sentence interruptions, reactions, and interjections
+   - Demonstrate power dynamics, alliances, and conflicts between characters
+   - Characters may be focused on their own concerns rather than the user's message
 
 3. Format:
-   **{{Character Name}}** *emotional state/action* Their dialogue
-   [Make sure responses flow naturally as one continuous group conversation]
+   **{{Character Name}}** *emotional state/action* Their dialogue — [interrupted by another character]
+   **{{Another Character}}** *interrupting action* Their interrupting dialogue
+   **{{First Character}}** *reaction* Continuation of their thoughts
 
-4. Interaction Guidelines:
-   - This is a SINGLE COMBINED RESPONSE with all character interactions
-   - Characters should interact with each other based on their natural relationships
-   - Allow for disagreements, tensions, or alliances based on character personalities
-   - Characters may reference past conversations and build on established dynamics
-   - Maintain consistent character voices and motivations throughout
+4. Living World Elements:
+   - Characters should reference ongoing events in their lives
+   - Include background activities and environmental details
+   - Characters may be distracted by their own thoughts or activities
+   - Allow for natural pauses, overlaps, and conversational messiness
+   - Characters might talk over each other or finish each other's sentences
 
-Generate an organic group conversation where characters demonstrate their own agency:`;
+5. Realism Guidelines:
+   - This is NOT a turn-based conversation
+   - Dialogue should feel organic, messy, and realistic
+   - Include subtle reactions, body language, and environmental interactions
+   - Characters should have consistent motivations and concerns
+   - The scene should feel like a snapshot of an ongoing world
+
+Generate a dynamic, living scene with natural character interactions and interruptions:`;
 
         // Store the user's message in the response history
         const userEntry: {
