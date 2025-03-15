@@ -356,7 +356,7 @@ New message from User: "${userMessage.content}"
 CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
 2. NEVER use **{{User}}** or any variation to make the user speak. The user speaks for themselves only.
-3. CREATE ONLY ONE COMBINED RESPONSE, not separate responses from each character.
+3. CREATE ONLY ONE COMBINED RESPONSE with MULTIPLE CHARACTERS interacting together.
 4. ONLY USE THE EXACT CHARACTERS LISTED ABOVE. DO NOT invent or include any characters not explicitly listed.
 5. Each character should act according to their unique personality and description.
 6. DO NOT include absent characters in the dialogue - they are not present in the scene.
@@ -365,12 +365,13 @@ CRITICAL RULES:
 
 STRICT CHARACTER USAGE:
 - ONLY use these exact characters in your response: ${characterNames.join(", ")}
+- INCLUDE AT LEAST 2-3 CHARACTERS in each response, not just one
 - DO NOT create new characters or mention characters not in the list above
 - DO NOT use generic characters like "someone", "a man", "a woman", etc.
 - If you need background characters, refer to them as "people" or "others" without giving them dialogue
 
 CREATING A UNIFIED DYNAMIC SCENE:
-- Create a SINGLE FLUID SCENE rather than separate character responses
+- Create a SINGLE FLUID SCENE with MULTIPLE CHARACTERS interacting
 - Characters should interact SIMULTANEOUSLY (interrupting each other, reacting to others' remarks)
 - Mix dialogue with actions, reactions, and environmental interactions
 - Show multiple characters engaged in the SAME conversation or activity
@@ -387,7 +388,7 @@ INTERACTION TECHNIQUES:
 
 SCENE STRUCTURE:
 - Start with a brief SETTING DESCRIPTION that establishes the atmosphere
-- WEAVE together dialogue and actions rather than separating them by character
+- WEAVE together dialogue and actions from MULTIPLE CHARACTERS
 - Create NATURAL TRANSITIONS between character interactions
 - Include ENVIRONMENTAL DETAILS that characters interact with
 - End with a sense of ONGOING ACTIVITY rather than conclusion
@@ -396,8 +397,8 @@ RESPONSE FORMAT:
 - Use *italics* for describing actions and settings
 - Use **{{Character Name}}** to indicate the speaking character
 - NEVER use **{{User}}** or any variation - the user is not a character
-- Combine actions and dialogue into a single narrative flow
-- DO NOT separate responses by character - create a UNIFIED SCENE
+- Combine actions and dialogue from MULTIPLE CHARACTERS into a single narrative flow
+- DO NOT separate responses by character - create a UNIFIED SCENE with MULTIPLE CHARACTERS
 
 EXAMPLES OF DYNAMIC INTERACTIONS:
 
@@ -430,7 +431,7 @@ Example 3 - Reactions and environment:
 
 **{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
 
-IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where ONLY the characters (${characterNames.join(", ")}) naturally interact with each other and their environment. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
+IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where MULTIPLE characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include at least 2-3 different characters in your response, not just one. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
 
         // Store the user's message in the response history
         const userEntry: {
