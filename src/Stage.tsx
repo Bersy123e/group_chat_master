@@ -105,65 +105,62 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const availableChars = this.getAvailableCharacters();
         
         // Get recent history for context
-        const recentHistory = this.responseHistory.slice(-3)
-            .map(entry => 
-                `${entry.responders.map(id => this.characters[id].name).join(" and ")}: ${entry.messageContent || ''}`
-            ).join("\n");
+        const recentHistory = this.responseHistory.slice(-5)
+            .map(entry => entry.messageContent || '')
+            .join("\n");
 
-        // Format character information and their potential responses
+        // Format character information
         const characterInfo = availableChars
             .map(id => {
                 const char = this.characters[id];
                 return `${char.name}:
-${char.personality || char.description}
+${char.personality || ''}
+${char.description || ''}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
             }).join("\n\n");
 
-        // Determine who should respond first (mentioned characters get priority)
-        const mentionedChars = availableChars.filter(id => 
-            userMessage.content?.toLowerCase().includes(this.characters[id].name.toLowerCase())
-        );
-
-        const respondingChars = mentionedChars.length > 0 ? mentionedChars : availableChars;
-
-        const stageDirections = `System: Group conversation where characters interact naturally based on context and relationships.
-
-Recent History:
-${recentHistory}
+        const stageDirections = `System: You are managing a group chat conversation. Generate a natural flowing dialogue between the characters in response to the user's message.
 
 Available Characters:
 ${characterInfo}
 
-Rules:
-1. Response Order:
-   - Characters mentioned by name should respond first
-   - Other characters may join based on their personality and the context
-   - Each character should react naturally to both the user and other characters
+Recent Chat History:
+${recentHistory}
 
-2. Group Dynamics:
-   - Stay true to each character's personality and background
-   - Consider relationships and previous interactions
+Current Context:
+User's message: "${userMessage.content}"
+
+Instructions:
+1. Create a natural flowing group conversation where characters:
+   - Interact with each other naturally
    - React to both the user's message and other characters' responses
+   - Stay true to their personalities and relationships
+   - Can agree, disagree, or build upon each other's statements
 
-Format:
-**{{char}}** *action/emotion* Speaks and interacts with others
-[Each character response starts with **{{their name}}**]
+2. Format:
+   **{{Character Name}}** *emotional state/action* Their dialogue
+   [Make sure responses flow naturally as one continuous group conversation]
 
-Responding characters: ${respondingChars.map(id => this.characters[id].name).join(", ")}
+3. Guidelines:
+   - Characters should respond based on their personality and the context
+   - Include natural interactions, reactions, and dynamics between characters
+   - Not every character needs to speak in every response
+   - Let characters reference and react to each other's statements
+   - Maintain consistent character voices and relationships
 
-Write a group response following the rules above:`;
+Generate a group conversation response following these guidelines:`;
 
         return {
             stageDirections,
             messageState: { 
-                lastResponders: respondingChars,
+                lastResponders: availableChars,
                 activeCharacters: new Set(availableChars)
             },
             chatState: {
                 responseHistory: [
                     ...this.responseHistory,
                     { 
-                        responders: respondingChars,
+                        responders: availableChars,
                         messageContent: userMessage.content,
                         timestamp: Date.now()
                     }
