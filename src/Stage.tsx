@@ -309,8 +309,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Get character names for explicit reference
         const characterNames = activeChars.map(id => this.characters[id].name);
         
-        // Format full chat history for context
-        // We'll use the entire history stored in responseHistory
+        // Format FULL chat history for context - no limits
         const fullHistory = this.responseHistory
             .map(entry => {
                 if (entry.responders.length === 0) {
@@ -322,17 +321,42 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             .filter(msg => msg.trim() !== '')
             .join("\n\n");
 
-        // Simplified character descriptions - just name and personality/description
+        // More detailed character descriptions including all available information
         const characterDescriptions = activeChars
             .map(id => {
                 const char = this.characters[id];
-                return `${char.name}: ${char.description || char.personality || 'No description available'}`;
-            }).join("\n");
+                let description = `${char.name}:\n`;
+                
+                if (char.personality) {
+                    description += `Personality: ${char.personality}\n`;
+                }
+                
+                if (char.description) {
+                    description += `Description: ${char.description}\n`;
+                }
+                
+                if (char.scenario) {
+                    description += `Scenario: ${char.scenario}\n`;
+                }
+                
+                if (char.example_dialogs) {
+                    description += `Example dialogue: ${char.example_dialogs}\n`;
+                }
+                
+                // Add current state information
+                description += `Current status: ${this.characterStates[id].currentActivity || 'conversing'}\n`;
+                description += `Current location: ${this.characterStates[id].location || 'main area'}\n`;
+                
+                return description;
+            }).join("\n\n");
             
-        // Simple list of absent characters
-        const absentCharacters = this.getAvailableCharacters()
+        // More detailed information about absent characters
+        const absentCharactersInfo = this.getAvailableCharacters()
             .filter(id => !activeChars.includes(id))
-            .map(id => this.characters[id].name);
+            .map(id => {
+                const char = this.characters[id];
+                return `${char.name} (${this.characterStates[id].currentActivity || 'away'} at ${this.characterStates[id].location || 'unknown location'})`;
+            });
 
         // Determine if we should focus on the user's message or create an ambient scene
         // If user's message is short or a greeting, we might focus more on ambient world
@@ -341,14 +365,20 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             /^(hi|hello|hey|greetings|sup|yo|what's up|how are you)/i.test(userMessage.content) ||
             this.responseHistory.length % 3 === 0; // Every 3rd message, focus more on ambient world
 
+        // Character relationships - inferred from history
+        const characterRelationships = `The characters have a shared history and ongoing relationships based on their previous interactions. They should reference past conversations and events when appropriate, building on established dynamics.`;
+
         const stageDirections = `System: You are creating a UNIFIED DYNAMIC SCENE with natural interactions between characters. Your task is to generate a realistic snapshot of a living world where characters interact with each other and their environment in a single flowing narrative.
 
 CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
 
-${absentCharacters.length > 0 ? `CHARACTERS NOT PRESENT (DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharacters.join(', ')}` : ''}
+${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
 
-CONVERSATION HISTORY:
+CHARACTER RELATIONSHIPS:
+${characterRelationships}
+
+FULL CONVERSATION HISTORY:
 ${fullHistory}
 
 New message from User: "${userMessage.content}"
@@ -363,6 +393,7 @@ CRITICAL RULES:
 7. DO NOT include absent characters in the dialogue - they are not present in the scene.
 8. Characters may reference absent characters but absent characters CANNOT speak or act.
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
+10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.
 
 USER INTERACTION RULES:
 - The user is NOT a character in your scene - they are an external entity
@@ -386,6 +417,7 @@ CREATING A UNIFIED DYNAMIC SCENE:
 - Mix dialogue with actions, reactions, and environmental interactions
 - Show multiple characters engaged in the SAME conversation or activity
 - Create a sense of SHARED SPACE where characters are aware of each other
+- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate
 
 INTERACTION TECHNIQUES:
 - Show characters INTERRUPTING each other mid-sentence
@@ -395,6 +427,7 @@ INTERACTION TECHNIQUES:
 - Show characters TALKING WHILE DOING other activities
 - Include BACKGROUND ACTIVITIES that continue throughout the scene
 - Show characters AGREEING/DISAGREEING with each other through words and actions
+- Have characters REFERENCE SHARED MEMORIES or past events from the conversation history
 
 SCENE STRUCTURE:
 - Start with a brief SETTING DESCRIPTION that establishes the atmosphere
@@ -402,6 +435,7 @@ SCENE STRUCTURE:
 - Create NATURAL TRANSITIONS between character interactions
 - Include ENVIRONMENTAL DETAILS that characters interact with
 - End with a sense of ONGOING ACTIVITY rather than conclusion
+- MAINTAIN CONTINUITY with previous scenes and conversations
 
 RESPONSE FORMAT:
 - Use *italics* for describing actions and settings
@@ -441,7 +475,7 @@ Example 3 - Reactions and environment:
 
 **{{Character3}}** *looking up from a thick book, adjusting glasses* "Actually, there might be something to it. Remember that passage we found..."
 
-IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where ALL characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include ALL characters listed above in your response. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
+IMPORTANT: Create a UNIFIED, DYNAMIC SCENE where ALL characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include ALL characters listed above in your response. REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. The scene should feel like a snapshot of a living world where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
 
         // Store the user's message in the response history
         const userEntry: {
