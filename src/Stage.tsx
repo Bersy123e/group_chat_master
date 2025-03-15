@@ -210,7 +210,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const participants = this.selectSceneParticipants(userMessage);
         if (participants.length === 0) {
             return {
-                stageDirections: "System: The world is still; no one remains nearby.",
+                stageDirections: "System: No characters available for interaction.",
                 messageState: { lastResponders: [], activeCharacters: new Set() },
                 chatState: { responseHistory: this.responseHistory }
             };
@@ -222,31 +222,22 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 
         const characterInfo = participants.map(id => {
             const char = this.characters[id];
-            return `${char.name}:\nTraits: ${char.personality || "None"}\nDescription: ${char.description || "No details"}\nScenario: ${char.scenario || "Unspecified"}`;
-        }).join("\n\n");
+            return `${char.name}: ${char.personality || ""}`;
+        }).join("\n");
 
-        const stageDirections = `System: Natural group conversation where characters interact based on context and personality.
+        const stageDirections = `System: Group conversation with ${participants.length} characters.
 
-Recent History:
-${recentHistory}
-
-Active Characters:
+Characters:
 ${characterInfo}
 
-Rules:
-1. Response Order:
-   - ${this.characters[participants[0]].name} leads the response as most relevant
-   - Others join naturally based on context and personality
-   
-2. Group Dynamics:
-   - ${participants.length} characters are participating
-   - Each character should act according to their traits and scenario
-   - Maintain natural conversation flow and relationships
-   - Characters can agree, disagree, or have their own perspectives
-
-Format:
+Format: Each character's response should be in the format:
 **{{Name}}** *action/emotion* "Dialogue"
-[Each character's response should reflect their unique personality]`;
+
+Rules:
+1. ${this.characters[participants[0]].name} leads as most relevant
+2. Others join naturally based on context
+3. Keep interactions natural and in-character
+4. Maintain conversation flow`;
 
         return {
             stageDirections,
@@ -272,7 +263,7 @@ Format:
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
 
-            // Extract all participating characters with the new format
+            // Extract all participating characters
             const charPattern = /\*\*{{([^}]+)}}\*\*/g;
             const participants = new Set<string>();
             let match;
@@ -288,6 +279,20 @@ Format:
 
             // Update responders with actual participants
             lastEntry.responders = Array.from(participants);
+
+            // Create a summary of who participated
+            const participantNames = Array.from(participants)
+                .map(id => this.characters[id].name)
+                .join(", ");
+
+            return {
+                modifiedMessage: botMessage.content,
+                systemMessage: `System: ${participantNames} participated in this interaction.`,
+                error: null,
+                chatState: {
+                    responseHistory: this.responseHistory
+                }
+            };
         }
 
         return {
