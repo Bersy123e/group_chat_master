@@ -309,6 +309,9 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Get character names for explicit reference
         const characterNames = activeChars.map(id => this.characters[id].name);
         
+        // Check if this is the first message in the conversation
+        const isFirstMessage = this.responseHistory.length === 0;
+        
         // Format FULL chat history for context - no limits
         const fullHistory = this.responseHistory
             .map(entry => {
@@ -368,9 +371,13 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Character relationships - inferred from history
         const characterRelationships = `The characters have a shared history and ongoing relationships based on their previous interactions. They should reference past conversations and events when appropriate, building on established dynamics.`;
 
+        // Special instructions for the first message
+        const firstMessageInstructions = isFirstMessage ? 
+            `This is the FIRST MESSAGE in the conversation. Start by introducing the scene and characters naturally. Establish the setting and initial dynamics between characters. Respond to the user's first message in a way that welcomes them to the conversation.` : '';
+
         const stageDirections = `System: You are creating a UNIFIED NARRATIVE SCENE with natural interactions between characters. Your task is to generate a realistic, book-like narrative where characters interact with each other and their environment in a flowing, coherent story.
 
-CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
+${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
 
 ${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
@@ -378,10 +385,7 @@ ${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INC
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
 
-FULL CONVERSATION HISTORY:
-${fullHistory}
-
-New message from User: "${userMessage.content}"
+${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from User: "${userMessage.content}"
 
 CRITICAL RULES:
 1. DO NOT GENERATE ANY USER RESPONSES OR DIALOGUE. The user has already provided their message above.
@@ -393,7 +397,7 @@ CRITICAL RULES:
 7. STRICTLY ENFORCE ABSENCE: If a character is listed as not present, they MUST NOT appear in the scene AT ALL - no dialogue, no actions, no mentions of current activities.
 8. Characters may reference absent characters in past tense or wondering where they are, but absent characters CANNOT speak or act.
 9. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions and world activities.'}
-10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.
+${!isFirstMessage ? '10. REFERENCE PAST CONVERSATIONS AND EVENTS from the full conversation history when appropriate.' : '10. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 11. AVOID REPETITIVE ACTIONS: Do not have characters perform the same actions repeatedly (like constantly touching under the table, adjusting clothing, etc).
 
 USER INTERACTION RULES:
@@ -419,7 +423,7 @@ CREATING A BOOK-LIKE NARRATIVE:
 - Mix dialogue with actions, reactions, and environmental descriptions
 - Show multiple characters engaged in the SAME conversation or activity
 - Create a sense of SHARED SPACE where characters are aware of each other
-- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate
+${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate' : '- ESTABLISH THE SETTING and atmosphere in rich detail'}
 - MAINTAIN CONTINUITY with previous scenes and conversations
 
 AVOIDING REPETITIVE ACTIONS:
@@ -455,7 +459,18 @@ RESPONSE FORMAT:
 - Format dialogue with proper quotation marks and attribution
 - DO NOT separate responses by character - create a UNIFIED NARRATIVE with ALL PRESENT CHARACTERS
 
-EXAMPLES OF NARRATIVE STYLE:
+${isFirstMessage ? `FIRST MESSAGE EXAMPLE:
+*The afternoon sun filters through the stained glass windows of the old library, casting colorful patterns across the worn wooden floor. The scent of old books and leather bindings fills the air, mingling with the faint aroma of freshly brewed tea.*
+
+**{{Character1}}** sits in a plush armchair by the window, her fingers tracing the embossed cover of an ancient tome. She looks up as the door creaks open, a smile warming her features. "Did you hear that? I think someone's trying to reach us."
+
+**{{Character2}}** pauses in his organization of scrolls on the far shelf, adjusting his spectacles as he turns toward the sound. "Indeed. How curious." He steps down from the small ladder, dusting his hands on his vest. "We don't get many visitors these days."
+
+*A gentle breeze stirs the pages of an open book on the central table, almost as if in response to the newcomer's presence.*
+
+**{{Character3}}** emerges from between two tall bookshelves, a steaming cup cradled in her hands. "Well, don't just stand there looking puzzled," she says with a light laugh. "Let's see what they want." She sets her cup down and moves toward the center of the room, her eyes bright with curiosity.
+
+` : `EXAMPLES OF NARRATIVE STYLE:
 
 Example 1 - Natural dialogue and varied interactions:
 *The afternoon sun filters through dusty windows as the group gathers in the living room. The air is thick with unspoken tension.*
@@ -478,8 +493,9 @@ Example 2 - Environmental interaction and character development:
 **{{Character2}}** passes a steaming cup to Character3 before responding. "Check under the sofa. Everything ends up there eventually." His voice carries a hint of amusement, a private joke between old friends.
 
 **{{Character3}}** accepts the cup with a grateful smile, inhaling the rich aroma. "Thanks. And speaking of lost things, did anyone ever figure out what happened to that old map we had? The one with the strange markings along the eastern border?"
+`}
 
-IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where ALL PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include ALL PRESENT characters listed above in your response. STRICTLY EXCLUDE any absent characters completely. REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity. Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
+IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where ALL PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. ALWAYS include ALL PRESENT characters listed above in your response. STRICTLY EXCLUDE any absent characters completely. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above.`;
 
         // Store the user's message in the response history
         const userEntry: {
