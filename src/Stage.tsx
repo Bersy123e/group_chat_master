@@ -175,28 +175,31 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             : "";
 
         // Format character information
-        const characterInfo = allResponders.map(id => {
-            const char = this.characters[id];
-            return `${char.name}:
+        const characterInfo = Object.keys(this.characters)
+            .filter(id => !this.characters[id].isRemoved)
+            .map(id => {
+                const char = this.characters[id];
+                return `${char.name}:
 ${char.personality || char.description}
 ${char.scenario ? `Current scenario: ${char.scenario}` : ''}`;
-        }).join("\n\n");
+            }).join("\n\n");
 
-        const stageDirections = `System: This is a dynamic group conversation. Characters interact naturally while maintaining their unique personalities.
+        const stageDirections = `System: This is a dynamic group conversation. Characters interact naturally based on context and their personalities.
 
-Context:
+Recent Context:
 ${contextInfo}
 
-Characters:
+Available Characters:
 ${characterInfo}
 
-Format: {{char=Name}} *actions* Says something
+Response Format:
+{{char=Name}} *actions* Says something
 
-Guidelines:
-- Characters can respond in any order based on context
-- Stay true to personalities and scenarios
-- React to others naturally
-- Address others by name when appropriate
+Rules:
+- Up to ${this.config.maxResponders} characters can participate in each response
+- Each additional character has ${this.config.chainProbability}% chance to join
+- Characters maintain their personalities and scenarios
+- Responses should build on previous context
 
 Continue the conversation:`;
 
@@ -204,7 +207,7 @@ Continue the conversation:`;
             stageDirections,
             messageState: { 
                 lastResponders: allResponders,
-                activeCharacters: new Set(allResponders)
+                activeCharacters: new Set(Object.keys(this.characters).filter(id => !this.characters[id].isRemoved))
             },
             chatState: {
                 responseHistory: [
@@ -253,6 +256,23 @@ Continue the conversation:`;
         if (this.responseHistory.length > 0) {
             const lastEntry = this.responseHistory[this.responseHistory.length - 1];
             lastEntry.messageContent = botMessage.content;
+
+            // Extract all participating characters
+            const charPattern = /{{char=([^}]+)}}/g;
+            const participants = new Set<string>();
+            let match;
+            
+            while ((match = charPattern.exec(botMessage.content)) !== null) {
+                const charName = match[1];
+                const charId = Object.keys(this.characters)
+                    .find(id => this.characters[id].name === charName);
+                if (charId) {
+                    participants.add(charId);
+                }
+            }
+
+            // Update responders with actual participants
+            lastEntry.responders = Array.from(participants);
         }
 
         return {
