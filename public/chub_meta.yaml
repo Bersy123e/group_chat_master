@@ -96,9 +96,6 @@ state_schema:
 #    you should not make or set this value.
 # github_path will be added if it does not exist. It is the URL of the repo.
 
-github_path: 'https://github.com/Bersy123e/group_chat_master'
-extension_id: 'group-chat-master-d3fdf75a9edd'
-
 name: Dynamic Group Chat Stage
 type: stage
 version: 1.0.0
@@ -160,5 +157,4 @@ visibility: "PUBLIC"
 
 # Repository information
 github_path: 'https://github.com/Bersy123e/group_chat_master'
-extension_id: 'group-chat-master-d3fdf75a9edd'
 
