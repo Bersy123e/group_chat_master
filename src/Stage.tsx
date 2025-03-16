@@ -413,6 +413,7 @@ ${primaryResponders.length > 0 ? '17. While ALL CHARACTERS should participate in
 
 IMPORTANT CHARACTER PARTICIPATION RULES:
 - ALL CHARACTERS SHOULD PARTICIPATE IN THE SCENE, but in varying degrees depending on context.
+- Characters should ENGAGE WITH EACH OTHER DIRECTLY, addressing each other by name frequently
 - Not every character needs to speak extensively - some may just react briefly or have smaller roles.
 - Characters engaged in activities (${activeChars.map(id => {
   return this.characterStates[id] ? 
@@ -421,15 +422,17 @@ IMPORTANT CHARACTER PARTICIPATION RULES:
 }).join(', ')}) may be less verbose but should still be part of the scene.
 - Character participation should be based on relevance to the topic, their personality, current activity, and natural flow.
 - AVOID having just one character dominate the entire scene - create a balanced, dynamic interaction.
+- Create a LIVELY ATMOSPHERE where conversation feels spontaneous and natural
 - BEGIN YOUR RESPONSE WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER, not necessarily the first character in the list. If a character was directly addressed or is most relevant to the topic, they should typically respond first.
 ${primaryResponders.length > 0 ? `- THE FIRST RESPONSE SHOULD TYPICALLY COME FROM ONE OF THE DIRECTLY ADDRESSED CHARACTERS: ${primaryResponders.map(id => this.characters[id].name).join(", ")}` : ''}
 - The opening of the scene can also be a general environmental description before any character speaks, if appropriate.
 
 CHARACTER INTERACTION RULES:
-- Characters should ACTIVELY INTERACT WITH EACH OTHER, not just respond to the user
+- Characters should ACTIVELY AND FREQUENTLY INTERACT WITH EACH OTHER, with multiple exchanges in each scene
 - Include internal thoughts and reflections about what other characters say or do
 - Characters can ask each other questions, challenge each other's ideas, or build on what others said
 - Show characters REACTING to each other's statements within the same response
+- Create DYNAMIC MULTI-PERSON CONVERSATIONS rather than sequential monologues
 - Characters should have their own opinions, agreements, and disagreements with each other
 - Create DYNAMIC GROUP INTERACTIONS where multiple characters participate in the same conversation thread
 - Include non-verbal reactions like facial expressions, body language, or emotional responses to others
@@ -440,6 +443,24 @@ CHARACTER INTERACTION RULES:
 - Don't fall into patterns of "Character A always disagrees with Character B" - keep relationships dynamic
 - Not every interaction needs to be verbal - use shared activities, silent exchanges, or parallel actions
 - AVOID REPEATING THE SAME INTERACTION PATTERNS from previous responses
+- Ensure characters DIRECTLY RESPOND to what others say, not just stating their own thoughts
+
+DYNAMIC CONVERSATION RULES:
+- CREATE OVERLAPPING DIALOGUES where characters react to each other mid-sentence
+- Show QUICK BACK-AND-FORTH exchanges that feel like real conversation
+- Include MICRO-REACTIONS throughout dialogue (brief expressions, small gestures)
+- Characters should REFERENCE EACH OTHER BY NAME more frequently
+- Allow characters to FINISH EACH OTHER'S THOUGHTS or sentences occasionally
+- Create EMOTIONAL ESCALATIONS where intensity builds naturally
+- Mix SERIOUS AND LIGHT MOMENTS within the same conversation
+- Include BRIEF SIDE CONVERSATIONS between subgroups of characters
+- Show characters PHYSICALLY MOVING during conversation, not just static talking
+- Dialogue should FLOW NATURALLY with imperfections (hesitations, rephrasing)
+- Create MOMENTS OF CONNECTION through shared looks, inside jokes, or callbacks
+- Allow characters to DISAGREE AND DEBATE with natural passion
+- Show characters THINKING OUT LOUD and working through thoughts together
+- Occasionally have characters MISUNDERSTAND EACH OTHER, creating realistic friction
+- Incorporate GROUP LAUGHTER or collective reactions to events
 
 USER INTERACTION RULES:
 - The user is NOT a character in your scene - they are an external entity
@@ -466,6 +487,7 @@ CREATING A BOOK-LIKE NARRATIVE:
 - Mix dialogue with actions, reactions, and environmental descriptions
 - Show multiple characters engaged in the SAME conversation or activity
 - Create a sense of SHARED SPACE where characters are aware of each other
+- Create a VIBRANT LIVING SCENE where conversation sparkles with energy and authentic interactions
 ${!isFirstMessage ? '- REFERENCE PAST EVENTS AND CONVERSATIONS from the full history when appropriate' : '- ESTABLISH THE SETTING and atmosphere in rich detail'}
 - MAINTAIN CONTINUITY with previous scenes and conversations
 - MAINTAIN CONSISTENT FORMATTING throughout the entire response
