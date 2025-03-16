@@ -270,7 +270,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                         
                         // Only update if action is a clear change from previous state
                         if (position && (!this.characterStates[id].position || 
-                            !this.characterStates[id].position.includes(position.toLowerCase()))) {
+                            !this.characterStates[id].position?.includes(position.toLowerCase()))) {
                             this.characterStates[id].position = position.toLowerCase();
                             this.characterStates[id].lastAction = `changed position to ${position}`;
                         }
@@ -291,18 +291,22 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                         }
                         
                         if (action.includes('pick') || action.includes('take') || action.includes('hold')) {
-                            if (!this.characterStates[id].holdingItems.includes(object)) {
-                                this.characterStates[id].holdingItems.push(object);
+                            if (!this.characterStates[id].holdingItems?.includes(object)) {
+                                this.characterStates[id].holdingItems?.push(object);
                             }
                         } else if (action.includes('put') || action.includes('place') || action.includes('drop')) {
-                            this.characterStates[id].holdingItems = this.characterStates[id].holdingItems.filter(
-                                item => !item.includes(object)
-                            );
+                            if (this.characterStates[id].holdingItems) {
+                                this.characterStates[id].holdingItems = this.characterStates[id].holdingItems?.filter(
+                                    item => !item.includes(object)
+                                );
+                            }
                         } else if (action.includes('give') && match[4]) {
                             // Handle giving items to others
-                            this.characterStates[id].holdingItems = this.characterStates[id].holdingItems.filter(
-                                item => !item.includes(object)
-                            );
+                            if (this.characterStates[id].holdingItems) {
+                                this.characterStates[id].holdingItems = this.characterStates[id].holdingItems?.filter(
+                                    item => !item.includes(object)
+                                );
+                            }
                             
                             // Find recipient character
                             const recipient = match[4].trim().toLowerCase();
@@ -312,8 +316,8 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                                     if (!this.characterStates[otherId].holdingItems) {
                                         this.characterStates[otherId].holdingItems = [];
                                     }
-                                    if (!this.characterStates[otherId].holdingItems.includes(object)) {
-                                        this.characterStates[otherId].holdingItems.push(object);
+                                    if (!this.characterStates[otherId].holdingItems?.includes(object)) {
+                                        this.characterStates[otherId].holdingItems?.push(object);
                                     }
                                 }
                             });
