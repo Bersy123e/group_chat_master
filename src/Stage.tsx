@@ -610,7 +610,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const primaryFocusText = primaryResponders.length > 0 ? 
             `CHARACTERS DIRECTLY ADDRESSED: ${primaryResponders.map(id => this.characters[id].name).join(", ")}` : '';
 
-        const stageDirections = `System: You are creating a UNIFIED NARRATIVE SCENE with natural interactions between characters. Your task is to generate a realistic, book-like narrative where characters interact with each other and their environment in a flowing, coherent story.
+        const stageDirections = `System: YOU MUST CREATE ONE SINGLE UNIFIED NARRATIVE SCENE. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
@@ -621,6 +621,19 @@ CHARACTER RELATIONSHIPS:
 ${characterRelationships}
 
 ${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from User: "${userMessage.content}"
+
+OUTPUT FORMAT - EXTREMELY IMPORTANT:
+- Create a SINGLE FLOWING NARRATIVE with all characters interacting naturally
+- DO NOT separate responses by character or create individual blocks
+- DO NOT prefix response with "Preview" or character names as headers
+- DO NOT return multiple character responses - only ONE combined scene
+- ONLY INCLUDE CHARACTERS MARKED AS PRESENT - absent characters must not appear
+- Characters ENTER/EXIT scenes naturally - reference where absent characters went
+- Characters appear in the scene together, interacting with each other
+- Format dialogue as: **Character Name** "What they say" *followed by actions*
+- Descriptions of the environment should be in *italics* without character attribution
+- For quick exchanges, you can use a more compact format
+- The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
 
 CRITICAL NARRATIVE RULES:
 1. DO NOT GENERATE USER RESPONSES OR DIALOGUE. The user speaks for themselves only.
@@ -726,7 +739,14 @@ ANTI-REPETITION TECHNIQUES:
 - AVOID OVERUSED ADJECTIVES AND ADVERBS when describing character actions
 - MAINTAIN A LIST OF RECENTLY USED ACTION DESCRIPTIONS and avoid repeating them
 
-IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. NOT EVERY CHARACTER NEEDS TO SPEAK - some may just react briefly or remain silent based on their current activity and the context. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above. MAINTAIN CONSISTENT FORMATTING throughout.`;
+FINAL REMINDER - EXTREMELY IMPORTANT:
+- DO NOT generate separate character blocks or "Preview" sections
+- ALL characters must appear in ONE UNIFIED NARRATIVE
+- Your response must be a SINGLE FLOWING SCENE with natural interactions
+- The response should flow naturally with characters interacting with each other
+- NEVER make the user speak or act - they are not a character in your response
+- DO NOT invent new characters not listed above
+- MAINTAIN CONSISTENT FORMATTING throughout`;
 
         // Store the user's message in the response history
         const userEntry: ChatStateType['responseHistory'][0] = {
@@ -793,23 +813,57 @@ IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${cha
         // Update character states based on the response
         this.updateCharacterStates(botMessage.content);
         
-        // Store the bot's response in the response history
+        // Extract the generated response content
+        const content = botMessage.content;
+        
+        // Check if the response follows the expected unified narrative format
+        // Look for signs of separate character blocks or "Preview" sections
+        let modifiedContent = content;
+        
+        // Remove any "Preview" headers
+        modifiedContent = modifiedContent.replace(/^Preview\s*$/gim, '');
+        
+        // Remove character name blocks (name alone on a line)
+        modifiedContent = modifiedContent.replace(/^([A-Za-z]+)\s*$/gim, '');
+        
+        // If we still have multiple character blocks, try to convert them to a unified format
+        if (/^([A-Za-z]+)\n.*?\n\n([A-Za-z]+)\n/gms.test(modifiedContent)) {
+            // Split by empty lines and process
+            const blocks = modifiedContent.split(/\n\n+/);
+            const processedBlocks = blocks.map((block: string) => {
+                // Check if this looks like a character block
+                const lines = block.split('\n');
+                if (lines.length > 1 && /^[A-Za-z]+$/.test(lines[0].trim())) {
+                    const character = lines[0].trim();
+                    const content = lines.slice(1).join('\n');
+                    // Convert to unified format with character name in bold
+                    return `**${character}** ${content}`;
+                }
+                return block;
+            });
+            modifiedContent = processedBlocks.join('\n\n');
+        }
+        
+        // Store the response in history
         // Используем всех активных персонажей, а не только отвечающих
         const activeChars = this.getActiveCharacters();
-        const botEntry: {
-            responders: string[];
-            messageContent?: string;
-            timestamp: number;
-        } = {
+        
+        // Add to response history
+        const responseEntry: ChatStateType['responseHistory'][0] = {
             responders: activeChars,
-            messageContent: botMessage.content,
+            messageContent: modifiedContent, // Use potentially modified content
             timestamp: Date.now()
         };
         
         this.responseHistory = [
             ...this.responseHistory,
-            botEntry
+            responseEntry
         ];
+        
+        // Final check to ensure we don't have any remaining "Preview" artifacts
+        if (/preview/i.test(modifiedContent)) {
+            console.warn("Response still contains 'Preview' sections after processing");
+        }
         
         return {
             messageState: {
