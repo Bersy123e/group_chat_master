@@ -55,6 +55,8 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     private responseHistory: ChatStateType['responseHistory'] = [];
     private characters: { [key: string]: Character };
     private characterStates: MessageStateType['characterStates'] = {};
+    // Добавляем отслеживание действий, требующих временного отсутствия
+    private taskTimers: { [key: string]: { task: string, duration: number, startTime: number } } = {};
 
     constructor(data: InitialData<InitStateType, ChatStateType, MessageStateType, undefined>) {
         /***
@@ -159,6 +161,15 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             /\bjust the two of us\b/i
         ];
         
+        // Расширенные шаблоны для обнаружения временных задач
+        const temporaryTaskPatterns = [
+            /\b(to get|to bring|to fetch|to prepare|to make)\s+([^,.]+)/i,
+            /\b(checking on|working on|taking care of)\s+([^,.]+)/i,
+            /\b(will be back|be right back|return soon|return in)\b/i,
+            /\b(taking orders|serving|cleaning|preparing food|cooking)/i,
+            /\b(excuse me while I|let me just|I'll just|one moment while I)\b/i
+        ];
+        
         const activityPatterns = [
             /\b(reading|writing|drawing|playing|working|cooking|eating|drinking|sleeping|resting|thinking|watching|listening)\b/i,
             /\b(busy with|occupied with|engaged in|focused on)\s+([^,.]+)/i,
@@ -167,6 +178,25 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             /\b(smiling|laughing|frowning|crying|shaking)\b/i,
             /\b(silent|quiet|thoughtful|pensive|hesitant)\b/i
         ];
+        
+        // Проверяем завершение временных задач
+        Object.keys(this.taskTimers).forEach(charId => {
+            const taskInfo = this.taskTimers[charId];
+            // Если прошло достаточно времени для выполнения задачи
+            if (now - taskInfo.startTime >= taskInfo.duration) {
+                // Возвращаем персонажа на сцену, если он выполнял временную задачу
+                if (!this.characterStates[charId].isPresent) {
+                    this.characterStates[charId] = {
+                        ...this.characterStates[charId],
+                        isPresent: true,
+                        currentActivity: 'returning',
+                        lastSeen: now
+                    };
+                }
+                // Удаляем таймер задачи, так как она завершена
+                delete this.taskTimers[charId];
+            }
+        });
         
         // Check for characters leaving
         availableChars.forEach(id => {
@@ -193,6 +223,39 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 }
             });
             
+            // Проверяем временные задачи персонажа
+            temporaryTaskPatterns.forEach(pattern => {
+                const taskRegex = new RegExp(`\\b${charName}\\b.{0,50}${pattern.source}`, 'i');
+                if (taskRegex.test(messageContent)) {
+                    // Определяем примерную длительность задачи
+                    let taskDuration = 60000; // По умолчанию 1 минута
+                    const task = messageContent.match(taskRegex)?.[0] || 'performing a task';
+                    
+                    if (/food|cook|prepare meal|dinner|lunch|breakfast/i.test(task)) {
+                        taskDuration = 300000; // 5 минут для приготовления еды
+                    } else if (/check|fetch|bring|get/i.test(task)) {
+                        taskDuration = 120000; // 2 минуты для принесения чего-то
+                    } else if (/clean|tidy|organize/i.test(task)) {
+                        taskDuration = 180000; // 3 минуты для уборки
+                    }
+                    
+                    // Отмечаем, что персонаж временно отсутствует
+                    this.characterStates[id] = {
+                        ...this.characterStates[id],
+                        isPresent: false,
+                        currentActivity: task,
+                        lastSeen: now
+                    };
+                    
+                    // Устанавливаем таймер для возвращения
+                    this.taskTimers[id] = {
+                        task,
+                        duration: taskDuration,
+                        startTime: now
+                    };
+                }
+            });
+            
             // Check if character is mentioned as returning
             returnPatterns.forEach(pattern => {
                 const returnRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
@@ -204,6 +267,11 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                         location: 'main area',
                         lastSeen: now
                     };
+                    
+                    // Если задача была временной, удаляем таймер
+                    if (this.taskTimers[id]) {
+                        delete this.taskTimers[id];
+                    }
                 }
             });
             
@@ -539,6 +607,25 @@ CONVERSATION PACING RULES:
 - Use BRIEF VERBAL SHORTHAND between characters who know each other well
 - Don't force elaborate descriptions when simple reactions would be more natural
 - RECOGNIZE when a topic calls for depth vs. when it calls for brevity
+
+SCENE FLOW AND CHARACTER PRESENCE RULES:
+- MAINTAIN NARRATIVE CONTINUITY at all times - track which characters are present and absent
+- When characters LEAVE THE SCENE FOR ANY REASON, they should DISAPPEAR from narrative completely until they return
+- Characters should EXIT AND ENTER scenes NATURALLY - not just vanish or appear without context
+- LOCATION TRANSITIONS should affect character presence - who's relevant changes based on where the scene takes place
+- Apply LOGICAL TIMEFRAMES for character absences - brief tasks take brief time, longer tasks require longer absences
+- TEMPORARY ROLES (like servers, clerks, vendors, etc.) should only appear when their function is relevant
+- Not all characters need to participate in all scenes - FOCUS ON WHO IS CONTEXTUALLY IMPORTANT
+- If conversation SPLITS INTO GROUPS, concentrate on one group while briefly acknowledging others
+- Characters can be PHYSICALLY PRESENT BUT NOT ACTIVE in conversation (busy with tasks, distracted, etc.)
+- REINTRODUCE returning characters naturally - highlight what they've been doing or what they're returning with
+- Characters can FADE TO BACKGROUND then become relevant again as conversation topics shift
+- When characters perform tasks that would take time (cooking, retrieving objects, etc.), their absence should span reasonable duration
+- Apply the concept of NARRATIVE CAMERA - just as a camera can't show everything at once, narrative focus shifts between important elements
+- Create ENVIRONMENTAL PERSISTENCE - absent characters may still impact the scene through objects, notes, or their previous actions
+- BACKGROUND CHARACTERS should have proportionally less "screen time" than main participants
+- Characters SHOULD NOT TELEPORT - movement between locations should be accounted for
+- FOLLOW THE FOCUS of the scene - if action moves to another room, characters left behind naturally fade out
 
 RESPONSE FORMAT:
 - Use **Character Name** to indicate who is speaking or acting
