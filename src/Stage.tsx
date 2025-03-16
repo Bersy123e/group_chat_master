@@ -19,7 +19,18 @@ type MessageStateType = {
         currentActivity?: string; // What the character is currently doing
         location?: string;      // Where the character currently is
         lastSeen?: number;      // Timestamp when character was last active
+        position?: string;      // Physical position in the scene (sitting, standing, etc.)
+        holdingItems?: string[]; // Items the character is currently holding
+        interactingWith?: string; // Character or object they're interacting with
+        lastAction?: string;    // Last physical action performed
+        emotionalState?: string; // Current emotional state
     }};  // Dynamic states of characters
+    sceneObjects?: {[key: string]: {
+        location: string;       // Where the object is
+        lastInteraction?: number; // When it was last interacted with
+        interactedBy?: string;   // Who last interacted with it
+        state?: string;         // Current state of the object
+    }}; // Track objects in the scene
 };
 
 /***
@@ -83,7 +94,10 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                         isPresent: true,
                         currentActivity: 'conversing',
                         location: 'main area',
-                        lastSeen: Date.now()
+                        lastSeen: Date.now(),
+                        position: 'standing',
+                        holdingItems: [],
+                        emotionalState: 'neutral'
                     };
                 }
             });
@@ -179,6 +193,42 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             /\b(silent|quiet|thoughtful|pensive|hesitant)\b/i
         ];
         
+        // New patterns for physical positions and interactions
+        const positionPatterns = [
+            /\b(sits|sat|sitting)\s?(down|on|at)?\s?([^,.]+)?/i,
+            /\b(stands|stood|standing)\s?(up|near|by)?\s?([^,.]+)?/i,
+            /\b(leans|leaned|leaning)\s?(against|on|over)?\s?([^,.]+)?/i,
+            /\b(lies|lay|lying)\s?(down|on)?\s?([^,.]+)?/i,
+            /\b(kneels|knelt|kneeling)\s?(down|before|by)?\s?([^,.]+)?/i
+        ];
+        
+        const objectInteractionPatterns = [
+            /\b(picks|picked|picking up|takes|took|taking)\s+([^,.]+)/i,
+            /\b(puts|put|putting|places|placed|placing)\s+([^,.]+)/i,
+            /\b(holds|held|holding)\s+([^,.]+)/i,
+            /\b(drops|dropped|dropping)\s+([^,.]+)/i,
+            /\b(gives|gave|giving)\s+([^,.]+)\s+(to)\s+([^,.]+)/i,
+            /\b(uses|used|using)\s+([^,.]+)/i
+        ];
+        
+        const characterInteractionPatterns = [
+            /\b(approaches|approached|approaching)\s+([^,.]+)/i,
+            /\b(touches|touched|touching)\s+([^,.]+)/i,
+            /\b(hugs|hugged|hugging)\s+([^,.]+)/i,
+            /\b(kisses|kissed|kissing)\s+([^,.]+)/i,
+            /\b(looks|looked|looking)\s+(at|toward)\s+([^,.]+)/i,
+            /\b(smiles|smiled|smiling)\s+(at|to)\s+([^,.]+)/i
+        ];
+        
+        const emotionalStatePatterns = [
+            /\b(happy|happily|delighted|excited|thrilled)\b/i,
+            /\b(sad|sadly|depressed|upset|disappointed)\b/i,
+            /\b(angry|angrily|furious|enraged|irritated)\b/i,
+            /\b(scared|afraid|terrified|fearful|anxious)\b/i,
+            /\b(surprised|shocked|astonished|amazed|stunned)\b/i,
+            /\b(calm|calmly|relaxed|peaceful|tranquil)\b/i
+        ];
+        
         // Проверяем завершение временных задач
         Object.keys(this.taskTimers).forEach(charId => {
             const taskInfo = this.taskTimers[charId];
@@ -198,174 +248,224 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             }
         });
         
-        // Check for characters leaving
+        // Process character changes based on message content
         availableChars.forEach(id => {
             const charName = this.characters[id].name.toLowerCase();
+            const charNameRegex = new RegExp(`\\b${charName}\\b`, 'i');
             
-            // Check if character is mentioned as leaving
-            leavePatterns.forEach(pattern => {
-                const leaveRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
-                if (leaveRegex.test(messageContent)) {
-                    this.characterStates[id] = {
-                        ...this.characterStates[id],
-                        isPresent: false,
-                        lastSeen: now
-                    };
-                    
-                    // Try to extract where they went
-                    const matches = messageContent.match(leaveRegex);
-                    if (matches && matches[1]) {
-                        this.characterStates[id].currentActivity = `went to ${matches[1]}`;
-                        this.characterStates[id].location = matches[1];
-                    } else {
-                        this.characterStates[id].currentActivity = 'away';
-                    }
-                }
-            });
-            
-            // Проверяем временные задачи персонажа
-            temporaryTaskPatterns.forEach(pattern => {
-                const taskRegex = new RegExp(`\\b${charName}\\b.{0,50}${pattern.source}`, 'i');
-                if (taskRegex.test(messageContent)) {
-                    // Определяем примерную длительность задачи
-                    let taskDuration = 60000; // По умолчанию 1 минута
-                    const task = messageContent.match(taskRegex)?.[0] || 'performing a task';
-                    
-                    if (/food|cook|prepare meal|dinner|lunch|breakfast/i.test(task)) {
-                        taskDuration = 300000; // 5 минут для приготовления еды
-                    } else if (/check|fetch|bring|get/i.test(task)) {
-                        taskDuration = 120000; // 2 минуты для принесения чего-то
-                    } else if (/clean|tidy|organize/i.test(task)) {
-                        taskDuration = 180000; // 3 минуты для уборки
-                    }
-                    
-                    // Отмечаем, что персонаж временно отсутствует
-                    this.characterStates[id] = {
-                        ...this.characterStates[id],
-                        isPresent: false,
-                        currentActivity: task,
-                        lastSeen: now
-                    };
-                    
-                    // Устанавливаем таймер для возвращения
-                    this.taskTimers[id] = {
-                        task,
-                        duration: taskDuration,
-                        startTime: now
-                    };
-                }
-            });
-            
-            // Check if character is mentioned as returning
-            returnPatterns.forEach(pattern => {
-                const returnRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
-                if (returnRegex.test(messageContent)) {
-                    this.characterStates[id] = {
-                        ...this.characterStates[id],
-                        isPresent: true,
-                        currentActivity: 'conversing',
-                        location: 'main area',
-                        lastSeen: now
-                    };
-                    
-                    // Если задача была временной, удаляем таймер
-                    if (this.taskTimers[id]) {
-                        delete this.taskTimers[id];
-                    }
-                }
-            });
-            
-            // Check if character is mentioned as doing an activity
-            activityPatterns.forEach(pattern => {
-                const activityRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
-                if (activityRegex.test(messageContent)) {
-                    const matches = messageContent.match(activityRegex);
-                    if (matches && matches[1]) {
-                        this.characterStates[id] = {
-                            ...this.characterStates[id],
-                            currentActivity: matches[1],
-                            lastSeen: now
-                        };
-                    } else if (matches && matches[2]) {
-                        this.characterStates[id] = {
-                            ...this.characterStates[id],
-                            currentActivity: matches[2],
-                            lastSeen: now
-                        };
-                    }
-                }
-            });
-        });
-        
-        // Check for private conversations
-        privatePatterns.forEach(pattern => {
-            const privateMatch = messageContent.match(pattern);
-            if (privateMatch) {
-                // Make most characters temporarily absent for private conversation
-                availableChars.forEach(id => {
-                    const charName = this.characters[id].name.toLowerCase();
-                    // If character is not mentioned in private conversation, mark as absent
-                    if (!messageContent.toLowerCase().includes(charName)) {
-                        this.characterStates[id] = {
-                            ...this.characterStates[id],
-                            isPresent: false,
-                            currentActivity: 'giving privacy',
-                            lastSeen: now
-                        };
+            if (messageContent.match(charNameRegex)) {
+                // Extract content around character name for context analysis
+                const nameIndex = messageContent.toLowerCase().indexOf(charName);
+                const startIndex = Math.max(0, nameIndex - 50);
+                const endIndex = Math.min(messageContent.length, nameIndex + 100);
+                const contextContent = messageContent.substring(startIndex, endIndex);
+                
+                // Check for position changes
+                positionPatterns.forEach(pattern => {
+                    const posRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    const match = contextContent.match(posRegex);
+                    if (match) {
+                        let position = match[1] || '';
+                        if (match[3]) position += ' ' + match[3];
+                        
+                        // Only update if action is a clear change from previous state
+                        if (position && (!this.characterStates[id].position || 
+                            !this.characterStates[id].position.includes(position.toLowerCase()))) {
+                            this.characterStates[id].position = position.toLowerCase();
+                            this.characterStates[id].lastAction = `changed position to ${position}`;
+                        }
                     }
                 });
-            }
-        });
-        
-        // Randomly have characters leave or return based on time (for more dynamic world)
-        const randomChance = 0.15; // 15% chance per message
-        if (Math.random() < randomChance) {
-            const randomCharId = availableChars[Math.floor(Math.random() * availableChars.length)];
-            if (randomCharId) {
-                const isCurrentlyPresent = this.characterStates[randomCharId].isPresent;
                 
-                // If present, might leave or start an activity
-                if (isCurrentlyPresent) {
-                    const activities = [
-                        'getting a drink', 'checking something', 'taking a break', 
-                        'attending to something', 'reading a book', 'looking out the window',
-                        'organizing their belongings', 'writing something down',
-                        'preparing food', 'fixing something', 'lost in thought'
-                    ];
-                    const randomActivity = activities[Math.floor(Math.random() * activities.length)];
-                    
-                    // 50% chance to leave, 50% chance to stay but be engaged in activity
-                    if (Math.random() < 0.5) {
-                        this.characterStates[randomCharId] = {
-                            ...this.characterStates[randomCharId],
-                            isPresent: false,
-                            currentActivity: randomActivity,
-                            lastSeen: now
-                        };
-                    } else {
-                        this.characterStates[randomCharId] = {
-                            ...this.characterStates[randomCharId],
-                            currentActivity: randomActivity,
-                            lastSeen: now
-                        };
+                // Check for object interactions
+                objectInteractionPatterns.forEach(pattern => {
+                    const objRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    const match = contextContent.match(objRegex);
+                    if (match && match[2]) {
+                        const object = match[2].trim();
+                        const action = match[1].toLowerCase();
+                        
+                        // Update holding items based on action
+                        if (!this.characterStates[id].holdingItems) {
+                            this.characterStates[id].holdingItems = [];
+                        }
+                        
+                        if (action.includes('pick') || action.includes('take') || action.includes('hold')) {
+                            if (!this.characterStates[id].holdingItems.includes(object)) {
+                                this.characterStates[id].holdingItems.push(object);
+                            }
+                        } else if (action.includes('put') || action.includes('place') || action.includes('drop')) {
+                            this.characterStates[id].holdingItems = this.characterStates[id].holdingItems.filter(
+                                item => !item.includes(object)
+                            );
+                        } else if (action.includes('give') && match[4]) {
+                            // Handle giving items to others
+                            this.characterStates[id].holdingItems = this.characterStates[id].holdingItems.filter(
+                                item => !item.includes(object)
+                            );
+                            
+                            // Find recipient character
+                            const recipient = match[4].trim().toLowerCase();
+                            Object.keys(this.characterStates).forEach(otherId => {
+                                if (this.characters[otherId].name.toLowerCase().includes(recipient) && 
+                                   this.characterStates[otherId].isPresent) {
+                                    if (!this.characterStates[otherId].holdingItems) {
+                                        this.characterStates[otherId].holdingItems = [];
+                                    }
+                                    if (!this.characterStates[otherId].holdingItems.includes(object)) {
+                                        this.characterStates[otherId].holdingItems.push(object);
+                                    }
+                                }
+                            });
+                        }
+                        
+                        this.characterStates[id].lastAction = `${action} ${object}`;
                     }
-                } 
-                // If absent, might return
-                else {
-                    // Only return if they've been gone for a while
-                    const timeGone = now - (this.characterStates[randomCharId].lastSeen || 0);
-                    if (timeGone > 2 * 60 * 1000) { // 2 minutes
-                        this.characterStates[randomCharId] = {
-                            ...this.characterStates[randomCharId],
+                });
+                
+                // Check for character interactions
+                characterInteractionPatterns.forEach(pattern => {
+                    const intRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    const match = contextContent.match(intRegex);
+                    if (match && match[2]) {
+                        const targetName = match[2].trim().toLowerCase();
+                        const action = match[1].toLowerCase();
+                        
+                        // Find if this refers to another character
+                        Object.keys(this.characterStates).forEach(otherId => {
+                            if (this.characters[otherId].name.toLowerCase().includes(targetName) && 
+                               this.characterStates[otherId].isPresent) {
+                                this.characterStates[id].interactingWith = this.characters[otherId].name;
+                                this.characterStates[id].lastAction = `${action} ${this.characters[otherId].name}`;
+                            }
+                        });
+                    }
+                });
+                
+                // Check for emotional states
+                emotionalStatePatterns.forEach(pattern => {
+                    const emRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    if (contextContent.match(emRegex)) {
+                        const emotion = pattern.source.replace(/\\b|\(|\)|\/i/g, '').split('|')[0];
+                        this.characterStates[id].emotionalState = emotion;
+                    }
+                });
+                
+                // Check if character is mentioned as leaving
+                leavePatterns.forEach(pattern => {
+                    const leaveRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    if (contextContent.match(leaveRegex)) {
+                        const matches = contextContent.match(leaveRegex);
+                        
+                        // Reset interaction state when leaving
+                        this.characterStates[id] = {
+                            ...this.characterStates[id],
+                            isPresent: false,
+                            lastSeen: now,
+                            interactingWith: undefined,
+                            lastAction: 'left the scene'
+                        };
+                        
+                        // Try to extract where they went
+                        if (matches && matches[1]) {
+                            this.characterStates[id].currentActivity = `went to ${matches[1]}`;
+                            this.characterStates[id].location = matches[1];
+                        } else {
+                            this.characterStates[id].currentActivity = 'away';
+                        }
+                    }
+                });
+                
+                // Check for returning characters
+                returnPatterns.forEach(pattern => {
+                    const returnRegex = new RegExp(`\\b${charName}\\b.{0,30}${pattern.source}`, 'i');
+                    if (contextContent.match(returnRegex)) {
+                        this.characterStates[id] = {
+                            ...this.characterStates[id],
                             isPresent: true,
                             currentActivity: 'conversing',
                             location: 'main area',
                             lastSeen: now
                         };
+                        
+                        // Если задача была временной, удаляем таймер
+                        if (this.taskTimers[id]) {
+                            delete this.taskTimers[id];
+                        }
+                    }
+                });
+                
+                // Check for private conversations
+                privatePatterns.forEach(pattern => {
+                    const privateMatch = contextContent.match(pattern);
+                    if (privateMatch) {
+                        // Make most characters temporarily absent for private conversation
+                        availableChars.forEach(otherId => {
+                            const otherCharName = this.characters[otherId].name.toLowerCase();
+                            // If character is not mentioned in private conversation, mark as absent
+                            if (!contextContent.toLowerCase().includes(otherCharName)) {
+                                this.characterStates[otherId] = {
+                                    ...this.characterStates[otherId],
+                                    isPresent: false,
+                                    currentActivity: 'giving privacy',
+                                    lastSeen: now
+                                };
+                            }
+                        });
+                    }
+                });
+                
+                // Randomly have characters leave or return based on time (for more dynamic world)
+                const randomChance = 0.15; // 15% chance per message
+                if (Math.random() < randomChance) {
+                    const randomCharId = availableChars[Math.floor(Math.random() * availableChars.length)];
+                    if (randomCharId) {
+                        const isCurrentlyPresent = this.characterStates[randomCharId].isPresent;
+                        
+                        // If present, might leave or start an activity
+                        if (isCurrentlyPresent) {
+                            const activities = [
+                                'getting a drink', 'checking something', 'taking a break', 
+                                'attending to something', 'reading a book', 'looking out the window',
+                                'organizing their belongings', 'writing something down',
+                                'preparing food', 'fixing something', 'lost in thought'
+                            ];
+                            const randomActivity = activities[Math.floor(Math.random() * activities.length)];
+                            
+                            // 50% chance to leave, 50% chance to stay but be engaged in activity
+                            if (Math.random() < 0.5) {
+                                this.characterStates[randomCharId] = {
+                                    ...this.characterStates[randomCharId],
+                                    isPresent: false,
+                                    currentActivity: randomActivity,
+                                    lastSeen: now
+                                };
+                            } else {
+                                this.characterStates[randomCharId] = {
+                                    ...this.characterStates[randomCharId],
+                                    currentActivity: randomActivity,
+                                    lastSeen: now
+                                };
+                            }
+                        } 
+                        // If absent, might return
+                        else {
+                            // Only return if they've been gone for a while
+                            const timeGone = now - (this.characterStates[randomCharId].lastSeen || 0);
+                            if (timeGone > 2 * 60 * 1000) { // 2 minutes
+                                this.characterStates[randomCharId] = {
+                                    ...this.characterStates[randomCharId],
+                                    isPresent: true,
+                                    currentActivity: 'conversing',
+                                    location: 'main area',
+                                    lastSeen: now
+                                };
+                            }
+                        }
                     }
                 }
             }
-        }
+        });
     }
 
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
@@ -408,15 +508,49 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         // Все активные персонажи должны участвовать в сцене
         let respondingCharacterIds = [...activeChars];
 
-        // Более детальные описания персонажей со всей доступной информацией
+        // Create detailed character descriptions with physical states
         const characterDescriptions = activeChars
             .map(id => {
                 const char = this.characters[id];
+                const state = this.characterStates[id];
                 let description = `${char.name}:\n`;
                 
                 // Only include the description field as requested
                 if (char.description) {
                     description += `${char.description}`;
+                }
+                
+                // Add physical state information if available
+                if (state) {
+                    const physicalDetails = [];
+                    
+                    if (state.position) {
+                        physicalDetails.push(`Currently ${state.position}`);
+                    }
+                    
+                    if (state.holdingItems && state.holdingItems.length > 0) {
+                        physicalDetails.push(`Holding: ${state.holdingItems.join(', ')}`);
+                    }
+                    
+                    if (state.currentActivity && state.currentActivity !== 'conversing') {
+                        physicalDetails.push(`Activity: ${state.currentActivity}`);
+                    }
+                    
+                    if (state.emotionalState && state.emotionalState !== 'neutral') {
+                        physicalDetails.push(`Mood: ${state.emotionalState}`);
+                    }
+                    
+                    if (state.interactingWith) {
+                        physicalDetails.push(`Interacting with: ${state.interactingWith}`);
+                    }
+                    
+                    if (state.lastAction && state.lastAction !== 'conversing') {
+                        physicalDetails.push(`Last action: ${state.lastAction}`);
+                    }
+                    
+                    if (physicalDetails.length > 0) {
+                        description += ` (${physicalDetails.join(' | ')})`;
+                    }
                 }
                 
                 return description;
@@ -429,6 +563,30 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 const char = this.characters[id];
                 return `${char.name} (${this.characterStates[id].currentActivity || 'away'} at ${this.characterStates[id].location || 'unknown location'})`;
             });
+
+        // Create a detailed scene description based on character positions and interactions
+        const sceneDescription = activeChars.length > 0 
+            ? `Current scene: Characters are in the ${activeChars.length > 0 ? this.characterStates[activeChars[0]].location || 'main area' : 'main area'}. ` +
+              activeChars.map(id => {
+                  const char = this.characters[id];
+                  const state = this.characterStates[id];
+                  let desc = `${char.name} is ${state.position || 'present'}`;
+                  
+                  if (state.currentActivity && state.currentActivity !== 'conversing') {
+                      desc += ` and ${state.currentActivity}`;
+                  }
+                  
+                  if (state.holdingItems && state.holdingItems.length > 0) {
+                      desc += ` while holding ${state.holdingItems.join(', ')}`;
+                  }
+                  
+                  if (state.interactingWith) {
+                      desc += ` and interacting with ${state.interactingWith}`;
+                  }
+                  
+                  return desc;
+              }).join('. ') + '.'
+            : '';
 
         // Determine if we should focus on the user's message or create an ambient scene
         // If user's message is short or a greeting, we might focus more on ambient world
@@ -453,7 +611,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
 
-${primaryFocusText ? primaryFocusText + '\n\n' : ''}${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
+${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}${primaryFocusText ? primaryFocusText + '\n\n' : ''}${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
 
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
@@ -495,6 +653,21 @@ DIALOGUE & INTERACTION TECHNIQUES:
 - For important moments, use more detailed emotional and sensory descriptions
 - Incorporate GROUP REACTIONS to significant events or statements
 
+PHYSICAL CONSISTENCY RULES:
+- MAINTAIN SPATIAL AWARENESS - track character positions and distances between them
+- RESPECT PHYSICAL LIMITATIONS - actions take time and follow logical sequences
+- NO TELEPORTATION - characters must move through space to reach new locations
+- MAINTAIN OBJECT PERMANENCE - items characters interact with should remain consistent
+- TRACK PHYSICAL STATES like sitting/standing/holding items throughout the scene
+- NATURAL SEQUENCES OF MOTION - characters cannot skip intermediate actions
+- AVOID REPETITIVE PHYSICAL GESTURES or signature movements for each character
+- PROGRESSIVE ACTIONS - if a character starts an action, complete it before starting another
+- ACTION CONTINUITY - if a character was doing something, reference its completion or interruption
+- RESPECT CURRENT CHARACTER POSITIONS AND ITEMS they are holding when describing actions
+- SHOW TRANSITIONAL MOVEMENTS - characters should be shown moving from one position to another
+- MAINTAIN CONSISTENCY with the current scene description
+- ENSURE PHYSICAL INTERACTIONS are appropriate for character positions and proximities
+
 ${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters listed as absent MUST NOT appear in the scene - no dialogue, no actions\n- They may be referenced in past tense or as being away\n- Do not suddenly introduce them without a clear return\n\n' : ''}SCENE MANAGEMENT:
 - MAINTAIN A COHERENT SENSE OF PLACE throughout the narrative
 - Characters should EXIT AND ENTER scenes naturally, not just appear/disappear
@@ -506,6 +679,11 @@ ${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters liste
 - Characters SHOULD NOT TELEPORT - account for movement between locations
 - When the scene SHIFTS FOCUS, characters not involved naturally receive less attention
 - Transitions between locations should affect who is present and relevant
+- MAINTAIN OBJECT CONTINUITY - track items characters interact with throughout the scene
+- HONOR PHYSICS AND DISTANCE - characters can't instantly cross large spaces
+- ACTIVITIES TAKE TIME - maintain realistic durations for actions characters perform
+- REFERENCE CURRENT CHARACTER STATES such as positions, held items, and current activities
+- ENSURE ENVIRONMENTAL CONTEXT is maintained and referred to appropriately
 
 ${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge the user\'s message\n- They should respond with particular attention to the user\'s statements\n- Other characters can still participate but may react to these characters\' responses\n\n' : ''}MATURE CONTENT GUIDELINES:
 - Describe PHYSICAL AND INTIMATE INTERACTIONS with clear, direct language
@@ -528,6 +706,21 @@ RESPONSE FORMAT:
 - For quick exchanges, you can use a more compact format (e.g., **Character1** "Yes." **Character2** "I know!" **Character1** "Then why did you ask?")
 - The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
 - CONSISTENTLY use this format throughout the entire response
+
+ANTI-REPETITION TECHNIQUES:
+- AVOID CHARACTER VERBAL TICS - don't give characters signature phrases they repeat
+- VARY REACTIONS - don't have characters always respond the same way to similar situations
+- USE SYNONYMS - avoid repeating the same descriptive words for actions
+- ALTERNATE ACTION TYPES - mix physical, verbal, emotional, and thought-based responses
+- DIVERSIFY INTERACTION PATTERNS - don't fall into predictable back-and-forth exchanges
+- TRACK USED DESCRIPTIONS - avoid repeating the same descriptions for character actions
+- BALANCE GROUP DYNAMICS - don't always have the same characters interacting
+- AVOID FORMULA RESPONSES - vary how characters express agreement, disagreement, etc.
+- DIVERSIFY CHARACTER MOVEMENT DESCRIPTIONS - don't use the same pattern for movement
+- VARY EMOTIONAL EXPRESSIONS - use different ways to show the same emotion
+- USE DIFFERENT SENTENCE STRUCTURES for similar actions
+- AVOID OVERUSED ADJECTIVES AND ADVERBS when describing character actions
+- MAINTAIN A LIST OF RECENTLY USED ACTION DESCRIPTIONS and avoid repeating them
 
 IMPORTANT: Create a UNIFIED, BOOK-LIKE NARRATIVE where PRESENT characters (${characterNames.join(", ")}) naturally interact with each other and their environment. NOT EVERY CHARACTER NEEDS TO SPEAK - some may just react briefly or remain silent based on their current activity and the context. ${!isFirstMessage ? 'REFERENCE PAST CONVERSATIONS AND EVENTS when appropriate to create continuity.' : 'ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'} Focus on creating a CONTINUOUS FLOW of interaction rather than separate character responses. VARY character actions and avoid repetitive behaviors. The scene should feel like a chapter from a novel where multiple things happen simultaneously. NEVER make the user speak or act - they are not a character in your response. DO NOT invent new characters not listed above. MAINTAIN CONSISTENT FORMATTING throughout.`;
 
