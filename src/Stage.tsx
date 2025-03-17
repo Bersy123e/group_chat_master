@@ -489,7 +489,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const fullHistory = this.responseHistory
             .map(entry => {
                 if (entry.responders.length === 0) {
-                    return `[USER MESSAGE] ${entry.messageContent || ''}`;
+                    return `{{user}}: ${entry.messageContent || ''}`;
                 } else {
                     return entry.messageContent || '';
                 }
@@ -612,7 +612,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
 
         const stageDirections = `System: YOU MUST CREATE ONE SINGLE UNIFIED NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with the most contextually appropriate character responding first, then INCLUDE all other present characters in the same flowing response. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
-CRITICAL USER RULE - NEVER EVER GENERATE USER DIALOGUE OR RESPONSES. The user is not a character you control - they speak for themselves only.
+CRITICAL USER RULE - {{user}} IS NEVER A CHARACTER IN YOUR NARRATIVE. NEVER GENERATE RESPONSES FOR {{user}}. {{user}} exists outside the narrative and only sends input messages.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
@@ -622,10 +622,10 @@ ${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}$
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
 
-${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from User: "${userMessage.content}"
+${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from {{user}}: "${userMessage.content}"
 
 OUTPUT FORMAT - EXTREMELY IMPORTANT:
-- Create a SINGLE FLOWING NARRATIVE with all characters interacting naturally
+- Create a SINGLE FLOWING NARRATIVE with all characters interacting naturally in the same scene
 - DO NOT separate responses by character or create individual blocks
 - DO NOT prefix response with "Preview" or character names as headers
 - DO NOT return multiple character responses - only ONE combined scene
@@ -633,13 +633,19 @@ OUTPUT FORMAT - EXTREMELY IMPORTANT:
 - Characters ENTER/EXIT scenes naturally - reference where absent characters went
 - Characters appear in the scene together, interacting with each other
 - Format dialogue as: **Character Name** "What they say" *followed by actions*
-- NEVER format user dialogue as: **User** or use any formatting that makes the user appear as a character
+- NEVER include {{user}} as a character in the narrative - {{user}} is outside the scene
+- NEVER generate dialogue, thoughts, or actions for {{user}} in any format
 - Descriptions of the environment should be in *italics* without character attribution
-- For quick exchanges, you can use a more compact format
+- For quick exchanges, you can use a more compact format with multiple characters
 - The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
+- ALL present characters must participate in the scene, not just one character
+- Ensure dynamic interactions between multiple characters, not just monologues
+- Use varied sentence structures and dialogue patterns for different characters
+
+DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions in your response.
 
 CRITICAL NARRATIVE RULES:
-1. DO NOT GENERATE USER RESPONSES OR DIALOGUE. The user speaks for themselves only and is NOT a character you control.
+1. DO NOT GENERATE {{user}} RESPONSES OR DIALOGUE. {{user}} speaks for themselves only and is NOT a character you control.
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
 3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation, then INCLUDE ALL OTHER PRESENT CHARACTERS in the same flowing response.
 4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
@@ -651,8 +657,8 @@ CRITICAL NARRATIVE RULES:
 10. TEMPORARY CHARACTERS should only appear when contextually relevant.
 11. LOCATION TRANSITIONS should affect which characters are present and active.
 12. DO NOT INVENT NEW CHARACTERS - use only those listed above.
-13. The user is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
-14. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions.'}
+13. {{user}} is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
+14. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on {{user}}\'s message.' : 'Balance responding to {{user}} with character interactions.'}
 ${!isFirstMessage ? '15. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '15. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 ${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
 
@@ -711,17 +717,19 @@ ${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters liste
 - ENSURE ENVIRONMENTAL CONTEXT is maintained and referred to appropriately
 
 USER REPRESENTATION RULES:
-- NEVER generate dialogue or actions for the user - they are not a character you control
-- The user exists in the scene but you don't control what they say or do
-- Don't use **User** or any similar format that would make the user appear as a character
-- Reference the user's messages only as past statements they've already made
-- INCORRECT EXAMPLE (NEVER DO THIS): **User** "What do you think about that?" or *User nods in agreement*
-- INCORRECT EXAMPLE (NEVER DO THIS): {{user}}: [Your response here] or "{{user}}: What do you think?"
-- INCORRECT EXAMPLE (NEVER DO THIS): User: "Thanks for explaining that" or "User smiled at her comment"
-- NEVER include ANY placeholders like [Your response here] that prompt or expect the user to fill in
-- CORRECT APPROACH: Have characters react to what the user has already said without putting new words in their mouth
+- {{user}} IS NOT A CHARACTER IN YOUR NARRATIVE
+- NEVER generate dialogue, text, or actions for {{user}}
+- {{user}} only communicates through direct messages shown as "{{user}}: [message]"
+- Don't use **{{user}}** format or ANY format that includes {{user}} in the narrative
+- Reference {{user}}'s messages only as past statements they've already made
+- INCORRECT: **{{user}}** "What do you think about that?" 
+- INCORRECT: *{{user}} nods in agreement*
+- INCORRECT: {{user}}: [Your response here]
+- INCORRECT: {{user}}: "Thanks for explaining that"
+- NEVER include ANY placeholders like [Your response here]
+- CORRECT: Have characters react to what {{user}} has already said in their input message
 
-${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge the user\'s message first\n- They should respond with particular attention to the user\'s statements\n- Other characters MUST ALSO PARTICIPATE and may react to these characters\' responses or the user\'s message directly\n\n' : ''}MATURE CONTENT GUIDELINES:
+${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge {{user}}\'s message first\n- They should respond with particular attention to {{user}}\'s statements\n- Other characters MUST ALSO PARTICIPATE and may react to these characters\' responses or {{user}}\'s message directly\n\n' : ''}MATURE CONTENT GUIDELINES:
 - Describe PHYSICAL AND INTIMATE INTERACTIONS with clear, direct language
 - Use ANATOMICALLY CORRECT TERMINOLOGY rather than euphemisms
 - Show UNIQUE PHYSICAL AND EMOTIONAL RESPONSES from each character
@@ -763,7 +771,7 @@ FINAL REMINDER - EXTREMELY IMPORTANT:
 - ALL characters must appear in ONE UNIFIED NARRATIVE
 - Your response must be a SINGLE FLOWING SCENE with natural interactions
 - The response should flow naturally with characters interacting with each other
-- NEVER make the user speak or act - they are not a character in your response
+- NEVER make {{user}} speak or act - they are not a character in your response
 - DO NOT invent new characters not listed above
 - MAINTAIN CONSISTENT FORMATTING throughout
 - INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character`;
