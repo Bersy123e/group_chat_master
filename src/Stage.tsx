@@ -610,7 +610,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         const primaryFocusText = primaryResponders.length > 0 ? 
             `CHARACTERS DIRECTLY ADDRESSED: ${primaryResponders.map(id => this.characters[id].name).join(", ")}` : '';
 
-        const stageDirections = `System: YOU MUST CREATE ONE SINGLE UNIFIED NARRATIVE SCENE. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
+        const stageDirections = `System: YOU MUST CREATE ONE SINGLE UNIFIED NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with the most contextually appropriate character responding first, then INCLUDE all other present characters in the same flowing response. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
@@ -638,7 +638,7 @@ OUTPUT FORMAT - EXTREMELY IMPORTANT:
 CRITICAL NARRATIVE RULES:
 1. DO NOT GENERATE USER RESPONSES OR DIALOGUE. The user speaks for themselves only.
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
-3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation.
+3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation, then INCLUDE ALL OTHER PRESENT CHARACTERS in the same flowing response.
 4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER, not just with the user.
 5. REACT IMMEDIATELY to important statements or actions - don't delay reactions.
 6. VARY DIALOGUE PACING between detailed descriptions and quick exchanges as appropriate.
@@ -651,7 +651,7 @@ CRITICAL NARRATIVE RULES:
 13. The user is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
 14. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on the user\'s message.' : 'Balance responding to the user with character interactions.'}
 ${!isFirstMessage ? '15. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '15. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
-${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should respond more directly.' : ''}
+${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
 
 DIALOGUE & INTERACTION TECHNIQUES:
 - Use VARIED LANGUAGE AND STRUCTURES for each character based on their personality
@@ -669,6 +669,8 @@ DIALOGUE & INTERACTION TECHNIQUES:
 - For casual topics, keep dialogue LIGHT AND BRISK with minimal description
 - For important moments, use more detailed emotional and sensory descriptions
 - Incorporate GROUP REACTIONS to significant events or statements
+- Create NATURAL TRANSITIONS between characters, showing how attention shifts from one to another
+- VARY THE CONVERSATION PATTERN - don't follow the same character order repeatedly
 
 PHYSICAL CONSISTENCY RULES:
 - MAINTAIN SPATIAL AWARENESS - track character positions and distances between them
@@ -702,7 +704,7 @@ ${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters liste
 - REFERENCE CURRENT CHARACTER STATES such as positions, held items, and current activities
 - ENSURE ENVIRONMENTAL CONTEXT is maintained and referred to appropriately
 
-${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge the user\'s message\n- They should respond with particular attention to the user\'s statements\n- Other characters can still participate but may react to these characters\' responses\n\n' : ''}MATURE CONTENT GUIDELINES:
+${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge the user\'s message first\n- They should respond with particular attention to the user\'s statements\n- Other characters MUST ALSO PARTICIPATE and may react to these characters\' responses or the user\'s message directly\n\n' : ''}MATURE CONTENT GUIDELINES:
 - Describe PHYSICAL AND INTIMATE INTERACTIONS with clear, direct language
 - Use ANATOMICALLY CORRECT TERMINOLOGY rather than euphemisms
 - Show UNIQUE PHYSICAL AND EMOTIONAL RESPONSES from each character
@@ -746,7 +748,8 @@ FINAL REMINDER - EXTREMELY IMPORTANT:
 - The response should flow naturally with characters interacting with each other
 - NEVER make the user speak or act - they are not a character in your response
 - DO NOT invent new characters not listed above
-- MAINTAIN CONSISTENT FORMATTING throughout`;
+- MAINTAIN CONSISTENT FORMATTING throughout
+- INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character`;
 
         // Store the user's message in the response history
         const userEntry: ChatStateType['responseHistory'][0] = {
