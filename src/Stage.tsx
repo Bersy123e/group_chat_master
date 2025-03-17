@@ -713,6 +713,8 @@ USER REPRESENTATION RULES:
 - Don't use **User** or any similar format that would make the user appear as a character
 - Reference the user's messages only as past statements they've already made
 - INCORRECT EXAMPLE (NEVER DO THIS): **User** "What do you think about that?" or *User nods in agreement*
+- INCORRECT EXAMPLE (NEVER DO THIS): {{user}}: [Your response here] or "{{user}}: What do you think?"
+- NEVER include ANY placeholders like [Your response here] that prompt or expect the user to fill in
 - CORRECT APPROACH: Have characters react to what the user has already said without putting new words in their mouth
 
 ${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge the user\'s message first\n- They should respond with particular attention to the user\'s statements\n- Other characters MUST ALSO PARTICIPATE and may react to these characters\' responses or the user\'s message directly\n\n' : ''}MATURE CONTENT GUIDELINES:
