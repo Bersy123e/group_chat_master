@@ -702,7 +702,7 @@ PHYSICAL CONSISTENCY RULES:
 - MAINTAIN CONSISTENCY with the current scene description
 - ENSURE PHYSICAL INTERACTIONS are appropriate for character positions and proximities
 
-${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters listed as absent MUST NOT appear in the scene - no dialogue, no actions\n- They may be referenced in past tense or as being away\n- Do not suddenly introduce them without a clear return\n\n' : ''}SCENE MANAGEMENT:
+${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n- Characters listed as absent ABSOLUTELY MUST NOT appear in the scene - NO dialogue, NO actions, NO presence whatsoever\n- CRITICAL: DO NOT include absent characters in the scene in any way until they explicitly return\n- Any reference to absent characters must ONLY be in past tense or about them being away\n- Absent characters cannot be seen, heard, or interact with anyone in the current scene\n- Characters can only return to the scene through explicit narrative transitions\n- If you feel tempted to include an absent character, RESIST and focus only on present characters\n- Check the list of absent characters BEFORE including ANY character in your response\n\n' : ''}SCENE MANAGEMENT:
 - MAINTAIN A COHERENT SENSE OF PLACE throughout the narrative
 - Characters should EXIT AND ENTER scenes naturally, not just appear/disappear
 - Apply LOGICAL TIMEFRAMES - tasks that would take time in reality should take time in story
@@ -816,7 +816,8 @@ FINAL REMINDER - EXTREMELY IMPORTANT:
 - NEVER make {{user}} speak or act - they are not a character in your response
 - DO NOT invent new characters not listed above
 - MAINTAIN CONSISTENT FORMATTING throughout
-- INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character`;
+- INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character
+${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}`;
 
         // Store the user's message in the response history
         const userEntry: ChatStateType['responseHistory'][0] = {
@@ -917,6 +918,33 @@ FINAL REMINDER - EXTREMELY IMPORTANT:
         // Store the response in history
         // Используем всех активных персонажей, а не только отвечающих
         const activeChars = this.getActiveCharacters();
+        
+        // Проверка на упоминание отсутствующих персонажей в ответе бота
+        const absentChars = this.getAvailableCharacters().filter(id => !activeChars.includes(id));
+        let foundAbsentChars = false;
+        
+        if (absentChars.length > 0) {
+            // Проверяем, упоминаются ли отсутствующие персонажи как действующие в ответе
+            absentChars.forEach(id => {
+                const charName = this.characters[id].name;
+                // Ищем паттерны диалога или действий отсутствующего персонажа
+                const dialogPattern = new RegExp(`\\*\\*${charName}\\*\\*\\s*["']`);
+                const actionPattern = new RegExp(`\\*\\*${charName}\\*\\*\\s*\\*`);
+                
+                if (dialogPattern.test(modifiedContent) || actionPattern.test(modifiedContent)) {
+                    foundAbsentChars = true;
+                    console.warn(`Absent character ${charName} was incorrectly included in the response`);
+                    
+                    // Можно также добавить логику для исправления контента, удаляя упоминания отсутствующего персонажа
+                    // Но это может быть сложно сделать корректно без нарушения целостности повествования
+                }
+            });
+            
+            // Если обнаружены отсутствующие персонажи, можно добавить примечание в историю
+            if (foundAbsentChars) {
+                modifiedContent += "\n\n*Note: Some absent characters were incorrectly included in this scene.*";
+            }
+        }
         
         // Add to response history
         const responseEntry: ChatStateType['responseHistory'][0] = {
