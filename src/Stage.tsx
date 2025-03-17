@@ -635,6 +635,8 @@ OUTPUT FORMAT - EXTREMELY IMPORTANT:
 - Format dialogue as: **Character Name** "What they say" *followed by actions*
 - NEVER include {{user}} as a character in the narrative - {{user}} is outside the scene
 - NEVER generate dialogue, thoughts, or actions for {{user}} in any format
+- Characters CAN address and talk to {{user}} directly and refer to {{user}} by name
+- Characters should respond normally to {{user}}'s messages and questions
 - Descriptions of the environment should be in *italics* without character attribution
 - For quick exchanges, you can use a more compact format with multiple characters
 - The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
@@ -645,7 +647,7 @@ OUTPUT FORMAT - EXTREMELY IMPORTANT:
 DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions in your response.
 
 CRITICAL NARRATIVE RULES:
-1. DO NOT GENERATE {{user}} RESPONSES OR DIALOGUE. {{user}} speaks for themselves only and is NOT a character you control.
+1. DO NOT GENERATE {{user}} RESPONSES OR DIALOGUE. 
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
 3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation, then INCLUDE ALL OTHER PRESENT CHARACTERS in the same flowing response.
 4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
@@ -683,6 +685,7 @@ DIALOGUE & INTERACTION TECHNIQUES:
 - Create NATURAL TRANSITIONS between characters, showing how attention shifts from one to another
 - VARY THE CONVERSATION PATTERN - don't follow the same character order repeatedly
 - Show PERSONALITY DIFFERENCES through speech patterns, word choice, and reactions
+- Characters CAN respond directly to {{user}} and reference {{user}}'s input naturally
 
 PHYSICAL CONSISTENCY RULES:
 - MAINTAIN SPATIAL AWARENESS - track character positions and distances between them
@@ -721,13 +724,15 @@ USER REPRESENTATION RULES:
 - NEVER generate dialogue, text, or actions for {{user}}
 - {{user}} only communicates through direct messages shown as "{{user}}: [message]"
 - Don't use **{{user}}** format or ANY format that includes {{user}} in the narrative
-- Reference {{user}}'s messages only as past statements they've already made
 - INCORRECT: **{{user}}** "What do you think about that?" 
 - INCORRECT: *{{user}} nods in agreement*
 - INCORRECT: {{user}}: [Your response here]
 - INCORRECT: {{user}}: "Thanks for explaining that"
 - NEVER include ANY placeholders like [Your response here]
 - CORRECT: Have characters react to what {{user}} has already said in their input message
+- CORRECT: Characters CAN address {{user}} directly in their dialogue
+- CORRECT: **Character** "What do you think about that, {{user}}?"
+- CORRECT: **Character** *turns to {{user}}* "I agree with your point."
 
 ${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n- Characters who were directly addressed ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should acknowledge {{user}}\'s message first\n- They should respond with particular attention to {{user}}\'s statements\n- Other characters MUST ALSO PARTICIPATE and may react to these characters\' responses or {{user}}\'s message directly\n\n' : ''}MATURE CONTENT GUIDELINES:
 - Describe PHYSICAL AND INTIMATE INTERACTIONS with clear, direct language
