@@ -642,7 +642,7 @@ CRITICAL NARRATIVE RULES:
 1. DO NOT GENERATE USER RESPONSES OR DIALOGUE. The user speaks for themselves only and is NOT a character you control.
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
 3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation, then INCLUDE ALL OTHER PRESENT CHARACTERS in the same flowing response.
-4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER, not just with the user.
+4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
 5. REACT IMMEDIATELY to important statements or actions - don't delay reactions.
 6. VARY DIALOGUE PACING between detailed descriptions and quick exchanges as appropriate.
 7. AVOID ALL REPETITIVE PATTERNS in speech, actions, and story structure.
@@ -657,6 +657,8 @@ ${!isFirstMessage ? '15. REFERENCE PAST CONVERSATIONS when appropriate for conti
 ${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characters[id].name).join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
 
 DIALOGUE & INTERACTION TECHNIQUES:
+- Create EMOTIONALLY CHARGED interactions where appropriate.
+- Show subtle SUBTEXT and UNSPOKEN FEELINGS through body language and micro-expressions
 - Use VARIED LANGUAGE AND STRUCTURES for each character based on their personality
 - Create OVERLAPPING DIALOGUES where characters react mid-sentence and finish each other's thoughts
 - Mix QUICK EXCHANGES (e.g., **Character1** "Yes." **Character2** "I know!") with detailed interactions
@@ -674,6 +676,7 @@ DIALOGUE & INTERACTION TECHNIQUES:
 - Incorporate GROUP REACTIONS to significant events or statements
 - Create NATURAL TRANSITIONS between characters, showing how attention shifts from one to another
 - VARY THE CONVERSATION PATTERN - don't follow the same character order repeatedly
+- Show PERSONALITY DIFFERENCES through speech patterns, word choice, and reactions
 
 PHYSICAL CONSISTENCY RULES:
 - MAINTAIN SPATIAL AWARENESS - track character positions and distances between them
@@ -714,6 +717,7 @@ USER REPRESENTATION RULES:
 - Reference the user's messages only as past statements they've already made
 - INCORRECT EXAMPLE (NEVER DO THIS): **User** "What do you think about that?" or *User nods in agreement*
 - INCORRECT EXAMPLE (NEVER DO THIS): {{user}}: [Your response here] or "{{user}}: What do you think?"
+- INCORRECT EXAMPLE (NEVER DO THIS): User: "Thanks for explaining that" or "User smiled at her comment"
 - NEVER include ANY placeholders like [Your response here] that prompt or expect the user to fill in
 - CORRECT APPROACH: Have characters react to what the user has already said without putting new words in their mouth
 
