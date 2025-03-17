@@ -28,6 +28,28 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
         this.responseProcessor = new ResponseProcessor(this.characterManager);
     }
 
+    async setState(state: MessageStateType): Promise<void> {
+        if (state?.lastResponders) {
+            // Добавляем ответы персонажей в историю
+            this.responseHistory.push({ 
+                responders: state.lastResponders,
+                timestamp: Date.now(),
+                messageContent: ''
+            });
+        }
+        
+        // Обновляем состояния персонажей
+        if (state?.characterStates) {
+            this.characterManager.setCharacterStates(state.characterStates);
+        }
+    }
+    
+    async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
+        // Используем processMessage для обработки входящего сообщения
+        const isFirstMessage = this.responseHistory.length === 0;
+        return this.processMessage(userMessage, isFirstMessage);
+    }
+
     async processMessage(userMessage: Message, isFirstMessage: boolean): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         // Extract conversation history
         const fullHistory = this.responseHistory

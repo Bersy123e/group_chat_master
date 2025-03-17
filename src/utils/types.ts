@@ -1,12 +1,5 @@
-// Типы импортированные из @chub-ai/stages-ts
-export interface Character {
-    id: string;
-    name: string;
-    avatar?: string;
-    personality?: string;
-    description?: string;
-    isRemoved?: boolean;
-}
+// Импортируем типы из библиотеки
+import { Character, Message } from "@chub-ai/stages-ts";
 
 // Тип для состояния сообщения
 export type MessageStateType = {
@@ -43,11 +36,5 @@ export type ChatStateType = {
     }[];
 };
 
-// Тип для сообщения
-export interface Message {
-    id: string;
-    content: string;
-    timestamp: number;
-    role: 'user' | 'assistant';
-    metadata?: any;
-} 
+// Реэкспортируем используемые типы из библиотеки
+export type { Character, Message }; 

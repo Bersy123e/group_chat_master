@@ -400,6 +400,29 @@ export class CharacterManager {
     }
 
     /**
+     * Устанавливает состояния персонажей
+     * @param states Новые состояния персонажей
+     */
+    public setCharacterStates(states: {[key: string]: {
+        isPresent: boolean;
+        currentActivity?: string;
+        location?: string;
+        lastSeen?: number;
+        position?: string;
+        holdingItems?: string[];
+        interactingWith?: string;
+        lastAction?: string;
+        emotionalState?: string;
+    }}) {
+        this.characterStates = states;
+        
+        // Сбрасываем кэш, так как состояния изменились
+        this.memoizedActiveChars = {};
+        this.memoizedAvailableChars = null;
+        this.lastCharStatesHash = '';
+    }
+
+    /**
      * Возвращает текущие состояния персонажей
      */
     public getCharacterStates() {
