@@ -771,6 +771,43 @@ ANTI-REPETITION TECHNIQUES:
 - AVOID OVERUSED ADJECTIVES AND ADVERBS when describing character actions
 - MAINTAIN A LIST OF RECENTLY USED ACTION DESCRIPTIONS and avoid repeating them
 
+ADVANCED DIALOGUE VARIATION - EXTREMELY IMPORTANT:
+- NEVER REPEAT THE SAME CHARACTER RESPONSE PATTERNS more than once in a scene
+- TRACK ALL PHRASES AND EXPRESSIONS used in the current scene and avoid reusing them
+- IMPLEMENT SCENE-LEVEL MEMORY to ensure phrases, expressions, and reactions vary throughout
+- VARY SENTENCE LENGTH AND STRUCTURE throughout dialogue - mix short punchy lines with longer reflective ones
+- USE DIFFERENT CONVERSATION STYLES - mix debate, casual chat, emotional sharing, planning, reminiscing
+- AVOID "CALL AND RESPONSE" PATTERNS where characters respond in the same predictable order
+- CREATE NON-LINEAR DIALOGUE where characters occasionally interrupt, talk over each other, or have side conversations
+- CHANGE THE CONVERSATION FLOW by introducing new topics or perspectives naturally
+- USE DISTINCT VOCABULARY AND SPEECH PATTERNS for each character based on their personality and background
+- AVOID REPETITIVE DIALOGUE STRUCTURES (e.g., "I think..." followed by "Well, I think...")
+- MIX DIRECT AND INDIRECT RESPONSES - characters don't always have to respond directly to what was just said
+- VARY HOW CHARACTERS EXPRESS EMOTIONS - use a diverse range of physical, verbal, and cognitive reactions
+- CREATE MEMORY OF DIALOGUE BEATS to ensure different aspects of a topic are explored
+- USE SUBTEXT where characters sometimes say one thing but mean another
+- INCORPORATE SILENCE AND NON-VERBAL RESPONSES occasionally instead of always having verbal responses
+- INCLUDE DYNAMIC SHIFTS in conversation tone, pace, and energy level
+- USE VARIOUS LINGUISTIC DEVICES like metaphors, humor, irony, understatement that are unique to each character
+- AVOID ECHO PATTERNS where characters repeat the same ideas, even in different words
+
+SCENE DYNAMIC VARIATION:
+- VARY THE EMOTIONAL TONE throughout the scene - don't maintain the same mood throughout
+- SHIFT CONVERSATION TOPICS AND FOCUSES naturally to explore different aspects of interaction
+- CHANGE CHARACTER CONFIGURATIONS - move from whole group discussion to smaller interactions and back
+- CREATE MULTIPLE SIMULTANEOUS CONVERSATION THREADS when appropriate for larger groups
+- USE ENVIRONMENTAL CHANGES to drive new interactions (lighting, weather, passers-by, etc.)
+- INCORPORATE PHYSICAL ACTIVITY that changes throughout the scene (sitting, walking, working, eating)
+- CREATE NATURAL INTERRUPTIONS AND DISTRACTIONS that shift the scene's dynamic
+- VARY THE PACE OF INTERACTION - fast exchanges, thoughtful pauses, extended monologues
+- SHIFT POWER DYNAMICS throughout the scene as different characters take the lead
+- MIX SERIOUS AND LIGHT MOMENTS rather than maintaining a single tone
+- AVOID PATTERNS OF CHARACTER PARTICIPATION - don't have characters always contribute in the same order
+- INCORPORATE ASYMMETRIC PARTICIPATION where some characters might speak more at certain times
+- TRACK WHICH CHARACTERS HAVE INTERACTED and ensure new character pairings occur
+- USE TENSION AND RESOLUTION cycles rather than maintaining constant conflict or harmony
+- IMPLEMENT STORYLINE PROGRESSION where scene dynamics naturally evolve based on revelations or events
+
 FINAL REMINDER - EXTREMELY IMPORTANT:
 - DO NOT generate separate character blocks or "Preview" sections
 - ALL characters must appear in ONE UNIFIED NARRATIVE
