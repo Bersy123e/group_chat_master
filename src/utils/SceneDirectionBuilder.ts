@@ -62,6 +62,21 @@ USER ENGAGEMENT REMINDER:
 - END the scene with a character addressing {{user}} directly
 `;
 
+        // Add a specific section to prevent assumptions about user actions
+        const userActionRestriction = `
+USER ACTION RESTRICTION - EXTREMELY IMPORTANT:
+- {{user}} IS present in the scene, but NEVER create dialogue or actions FOR {{user}}
+- NEVER use phrases like "you reach out", "you look", "you feel", etc. that describe user actions
+- NEVER tell {{user}} what they are doing, feeling, or experiencing
+- NEVER direct the user with phrases like "you should" or "you need to"
+- NEVER put words in {{user}}'s mouth or assume their intentions
+- Characters should ONLY respond to what {{user}} has EXPLICITLY stated in their message
+- Characters MUST treat {{user}} as a participant who controls their OWN actions
+- Characters CAN interact with {{user}} through dialogue and actions, but NEVER control {{user}}'s responses
+- Treat {{user}} as someone who makes their OWN choices and takes their OWN actions
+- ONLY {{user}} decides what they do, say, or feel - NEVER the LLM
+`;
+
         // Add explicit cross-response repetition prevention
         const antiRepetitionGuidance = `
 CROSS-RESPONSE REPETITION PREVENTION:
@@ -79,7 +94,7 @@ CROSS-RESPONSE REPETITION PREVENTION:
         // Build full scene instructions
         return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have characters directly respond to {{user}}'s message, followed by natural interactions among all present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
-CRITICAL USER RULE - {{user}} IS NEVER A CHARACTER IN YOUR NARRATIVE. NEVER GENERATE RESPONSES FOR {{user}}. {{user}} exists outside the narrative and only sends input messages, but characters MUST acknowledge and respond to {{user}}'s message.
+CRITICAL USER RULE - {{user}} IS A PARTICIPANT IN THE SCENE BUT YOU MUST NEVER GENERATE ACTIONS OR DIALOGUE FOR {{user}}. {{user}} controls their own actions and words through their messages. Characters must acknowledge and respond to {{user}}'s message.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
@@ -90,6 +105,8 @@ CHARACTER RELATIONSHIPS:
 ${characterRelationships}
 
 ${userFocusReminder}
+
+${userActionRestriction}
 
 ${antiRepetitionGuidance}
 
