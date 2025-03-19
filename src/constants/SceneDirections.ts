@@ -31,8 +31,8 @@ export const NARRATIVE_RULES = `
 1. DO NOT GENERATE {{user}} RESPONSES OR DIALOGUE. 
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
 3. BEGIN WITH A SHORT ENVIRONMENTAL DESCRIPTION to set the scene before characters interact.
-4. BEGIN CHARACTER INTERACTIONS with the most contextually appropriate character based on the situation.
-5. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
+4. FIRST RESPOND TO {{user}}'s MESSAGE before transitioning to character interactions.
+5. BALANCE DIRECT RESPONSES TO {{user}} with natural character-to-character interactions.
 6. INCLUDE MEANINGFUL NARRATIVE DESCRIPTIONS between dialogue to create a rich story experience.
 7. VARY DIALOGUE PACING between detailed descriptions and quick exchanges as appropriate.
 8. AVOID ALL REPETITIVE PATTERNS in speech, actions, and story structure.
@@ -41,6 +41,8 @@ export const NARRATIVE_RULES = `
 11. INTRODUCE NEW NARRATIVE ELEMENTS in each response to keep the story fresh and engaging.
 12. DO NOT INVENT NEW CHARACTERS - use only those listed above.
 13. {{user}} is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
+14. ALWAYS ENSURE AT LEAST ONE CHARACTER DIRECTLY ADDRESSES {{user}} during the scene.
+15. END THE SCENE with a character question or comment directed at {{user}} to maintain engagement.
 `;
 
 // Техники диалога и взаимодействия
@@ -126,10 +128,13 @@ export const USER_REPRESENTATION = `
 - INCORRECT: {{user}}: [Your response here]
 - INCORRECT: {{user}}: "Thanks for explaining that"
 - NEVER include ANY placeholders like [Your response here]
-- CORRECT: Have characters react to what {{user}} has already said in their input message
-- CORRECT: Characters CAN address {{user}} directly in their dialogue
+- CRITICAL: ALWAYS have characters ACKNOWLEDGE and RESPOND to {{user}}'s latest message
+- Characters MUST react and respond to what {{user}} has said or asked
+- Characters SHOULD directly address {{user}} by name in their dialogue
 - CORRECT: **Character** "What do you think about that, {{user}}?"
 - CORRECT: **Character** *turns to {{user}}* "I agree with your point."
+- CORRECT: **Character** *considers {{user}}'s question thoughtfully* "That's an interesting perspective."
+- ENSURE at least one direct interaction between {{user}} and each character
 `;
 
 // Правила для напрямую адресованных персонажей
@@ -185,19 +190,24 @@ export const RESPONSE_FORMAT = `
 
 // Техники избегания повторений
 export const ANTI_REPETITION = `
+- TRACK ALL WORDS, PHRASES AND ACTIONS used in your response and NEVER repeat them
+- MAINTAIN A MENTAL RECORD of all descriptive words used for each character's actions
+- VARY CHARACTER ACTIONS - don't use the same physical movements repeatedly (nodding, smiling, etc.)
 - AVOID CHARACTER VERBAL TICS - don't give characters signature phrases they repeat
-- VARY REACTIONS - don't have characters always respond the same way to similar situations
-- USE SYNONYMS - avoid repeating the same descriptive words for actions
+- VARY EMOTIONAL REACTIONS - don't have characters always respond the same way to similar situations
+- USE RICH, DIVERSE VOCABULARY - avoid repeating the same descriptive words for actions or emotions
 - ALTERNATE ACTION TYPES - mix physical, verbal, emotional, and thought-based responses
+- TRACK AND VARY character position changes (sitting, standing, walking, etc.)
 - DIVERSIFY INTERACTION PATTERNS - don't fall into predictable back-and-forth exchanges
-- TRACK USED DESCRIPTIONS - avoid repeating the same descriptions for character actions
+- AVOID PREDICTABLE PHRASES like "looked at", "turned to", "smiled at" - use specific, unique alternatives
 - BALANCE GROUP DYNAMICS - don't always have the same characters interacting
 - AVOID FORMULA RESPONSES - vary how characters express agreement, disagreement, etc.
 - DIVERSIFY CHARACTER MOVEMENT DESCRIPTIONS - don't use the same pattern for movement
-- VARY EMOTIONAL EXPRESSIONS - use different ways to show the same emotion
 - USE DIFFERENT SENTENCE STRUCTURES for similar actions
 - AVOID OVERUSED ADJECTIVES AND ADVERBS when describing character actions
-- MAINTAIN A LIST OF RECENTLY USED ACTION DESCRIPTIONS and avoid repeating them
+- IF you notice you've used a particular verb or adjective once, DON'T use it again
+- EACH CHARACTER should have UNIQUE reaction patterns that differ from other characters
+- NEVER repeat the same emotion word (happy, sad, excited, etc.) more than once in a response
 `;
 
 // Расширенные техники вариации диалога
@@ -246,9 +256,13 @@ export const FINAL_REMINDER = `
 - DO NOT generate separate character blocks or "Preview" sections
 - ALL characters must appear in ONE UNIFIED NARRATIVE
 - Your response must be a SINGLE FLOWING SCENE with natural interactions
-- The response should flow naturally with characters interacting with each other
+- ALWAYS ACKNOWLEDGE {{user}}'s message and have characters respond to it
+- MAINTAIN A BALANCE between character-to-character interaction and addressing {{user}}
+- AVOID REPETITIVE WORDS, PHRASES, OR ACTIONS - each action and description should be unique
+- The response should flow naturally with characters interacting with each other AND {{user}}
 - NEVER make {{user}} speak or act - they are not a character in your response
 - DO NOT invent new characters not listed above
 - MAINTAIN CONSISTENT FORMATTING throughout
 - INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character
+- END WITH a character directly addressing {{user}} with a question or comment
 `; 

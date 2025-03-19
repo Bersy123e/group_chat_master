@@ -101,6 +101,9 @@ export class ResponseProcessor {
                 }
             }
             
+            // Check for repetitive patterns and reduce them
+            modifiedContent = this.identifyAndReduceRepetition(modifiedContent);
+            
             // Ensure proper narrative flow by preserving paragraph structure
             modifiedContent = this.ensureNarrativeFlow(modifiedContent);
             
@@ -127,7 +130,7 @@ export class ResponseProcessor {
     }
     
     /**
-     * Ensures narrative flow is maintained by preserving paragraph structure
+     * Ensures narrative flow is maintained by preserving paragraph structure and reducing repetition
      */
     private ensureNarrativeFlow(content: string): string {
         try {
@@ -150,9 +153,94 @@ export class ResponseProcessor {
                 return paragraph;
             });
             
-            return processedParagraphs.filter(p => p).join('\n\n');
+            // Join paragraphs with double newlines for proper spacing
+            let processedContent = processedParagraphs.filter(p => p).join('\n\n');
+            
+            // Ensure proper character name formatting
+            processedContent = this.enforceCharacterNameFormatting(processedContent);
+            
+            return processedContent;
         } catch (error) {
             console.error('Error ensuring narrative flow:', error);
+            return content;
+        }
+    }
+    
+    /**
+     * Enforces proper character name formatting and ensures dialogue is attributed correctly
+     */
+    private enforceCharacterNameFormatting(content: string): string {
+        try {
+            // Get list of active character names
+            const activeCharIds = this.characterManager.getActiveCharacters();
+            const characterNames = activeCharIds.map(id => {
+                const character = this.characterManager.getCharacter(id);
+                return character ? character.name : '';
+            }).filter(name => name);
+            
+            if (characterNames.length === 0) return content;
+            
+            let processedContent = content;
+            
+            // Ensure character names are properly formatted in bold
+            characterNames.forEach(name => {
+                // Don't replace names that are already formatted correctly
+                const nameRegex = new RegExp(`(?<!\\*\\*)${name}(?!\\*\\*)`, 'g');
+                processedContent = processedContent.replace(nameRegex, `**${name}**`);
+            });
+            
+            // Ensure dialogue attribution follows proper format
+            // Fix: Character Name "dialogue" (missing bold)
+            processedContent = processedContent.replace(/([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\s*:?\s*["']([^"']+)["']/g, (match, name, dialogue) => {
+                // Check if name is one of the character names
+                if (characterNames.some(charName => charName.toLowerCase() === name.toLowerCase())) {
+                    return `**${name}** "${dialogue}"`;
+                }
+                return match;
+            });
+            
+            return processedContent;
+        } catch (error) {
+            console.error('Error enforcing character name formatting:', error);
+            return content;
+        }
+    }
+    
+    /**
+     * Identifies and reduces repetitive patterns in the response
+     */
+    private identifyAndReduceRepetition(content: string): string {
+        try {
+            let processedContent = content;
+            
+            // Common repetitive patterns to detect
+            const commonPatterns = [
+                // Repeated nods
+                { pattern: /(\bnods?\b.*){2,}/gi, message: 'Detected repetitive nodding' },
+                // Repeated smiles
+                { pattern: /(\bsmiles?\b.*){2,}/gi, message: 'Detected repetitive smiling' },
+                // Repeated sighs
+                { pattern: /(\bsighs?\b.*){2,}/gi, message: 'Detected repetitive sighing' },
+                // Repeated looks/glances
+                { pattern: /(\b(?:looks?|glances?)\b.*){3,}/gi, message: 'Detected repetitive looking/glancing' },
+                // Repeated turns
+                { pattern: /(\bturns?\b.*){2,}/gi, message: 'Detected repetitive turning' },
+                // Repeated raises eyebrow
+                { pattern: /(\braises?\s+(?:an\s+)?eyebrow\b.*){2,}/gi, message: 'Detected repetitive eyebrow raising' },
+                // Repeated laughs
+                { pattern: /(\b(?:laughs?|chuckles?)\b.*){2,}/gi, message: 'Detected repetitive laughing' }
+            ];
+            
+            // Check for common repetitive patterns
+            commonPatterns.forEach(({ pattern, message }) => {
+                if (pattern.test(processedContent)) {
+                    console.warn(message);
+                }
+            });
+            
+            return processedContent;
+        } catch (error) {
+            console.error('Error identifying repetition:', error);
             return content;
         }
     }

@@ -52,10 +52,20 @@ export class SceneDirectionBuilder {
         // Determine narrative style based on user message
         const narrativeStyle = this.determineNarrativeStyle(userMessage.content);
         
-        // Build full scene instructions
-        return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have the most contextually appropriate character respond first, followed by natural interactions with all other present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
+        // Add user-focused reminder based on message content
+        const userFocusReminder = `
+USER ENGAGEMENT REMINDER:
+- {{user}}'s message: "${userMessage.content}"
+- FIRST have characters directly respond to this message
+- ENSURE multiple characters engage with {{user}}'s input
+- BALANCE responding to {{user}} with character-to-character interaction
+- END the scene with a character addressing {{user}} directly
+`;
 
-CRITICAL USER RULE - {{user}} IS NEVER A CHARACTER IN YOUR NARRATIVE. NEVER GENERATE RESPONSES FOR {{user}}. {{user}} exists outside the narrative and only sends input messages.
+        // Build full scene instructions
+        return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have characters directly respond to {{user}}'s message, followed by natural interactions among all present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
+
+CRITICAL USER RULE - {{user}} IS NEVER A CHARACTER IN YOUR NARRATIVE. NEVER GENERATE RESPONSES FOR {{user}}. {{user}} exists outside the narrative and only sends input messages, but characters MUST acknowledge and respond to {{user}}'s message.
 
 ${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
 ${characterDescriptions}
@@ -64,6 +74,8 @@ ${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}$
 
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
+
+${userFocusReminder}
 
 NARRATIVE STYLE:
 ${narrativeStyle}
@@ -77,9 +89,9 @@ DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions
 
 CRITICAL NARRATIVE RULES:
 ${Directions.NARRATIVE_RULES}
-14. ${isAmbientFocused ? 'FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on {{user}}\'s message.' : 'Balance responding to {{user}} with character interactions.'}
-${!isFirstMessage ? '15. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '15. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
-${primaryResponders.length > 0 ? '16. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characterManager.getCharacter(id)?.name || '').join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
+${isAmbientFocused ? '16. FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on {{user}}\'s message.' : '16. Balance responding to {{user}} with character interactions.'}
+${!isFirstMessage ? '17. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '17. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
+${primaryResponders.length > 0 ? '18. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characterManager.getCharacter(id)?.name || '').join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
 
 DIALOGUE & INTERACTION TECHNIQUES:
 ${Directions.DIALOGUE_TECHNIQUES}
@@ -121,9 +133,10 @@ ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARAC
      */
     private determineNarrativeStyle(message: string): string {
         // Check for emotional content that might influence the narrative style
-        const hasEmotionalContent = /(\bsad\b|\bangry\b|\bhappy\b|\bexcited\b|\bafraid\b|\bscared\b|\blove\b|\bhate\b)/i.test(message);
-        const hasActionContent = /(\brun\b|\bjump\b|\bfight\b|\bmove\b|\battack\b|\bdefend\b|\bprotect\b)/i.test(message);
-        const hasMysteryContent = /(\bmystery\b|\bsecret\b|\bclue\b|\binvestigate\b|\bunknown\b|\bhidden\b)/i.test(message);
+        const hasEmotionalContent = /(\bsad\b|\bangry\b|\bhappy\b|\bexcited\b|\bafraid\b|\bscared\b|\blove\b|\bhate\b|\bfeel|\bfeeling|\bemotion)/i.test(message);
+        const hasActionContent = /(\brun\b|\bjump\b|\bfight\b|\bmove\b|\battack\b|\bdefend\b|\bprotect\b|\bwalk|\bstand|\btouch|\bhold|\bgrab|\bpush|\bpull)/i.test(message);
+        const hasMysteryContent = /(\bmystery\b|\bsecret\b|\bclue\b|\binvestigate\b|\bunknown\b|\bhidden\b|\bpuzzle|\bwonder|\bcurious|\bstrange|\bodd|\bweird)/i.test(message);
+        const hasQuestionContent = /(\?|what|how|why|when|where|who|which|whose|whom|can|could|would|will|should)/i.test(message);
         
         let style = `
 - Create a vivid, flowing narrative with meaningful descriptions
@@ -132,14 +145,20 @@ ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARAC
 - Show internal character thoughts and reactions
 - Use varied pacing appropriate to the mood
 - Create a natural story progression within each response
+- EXPLICITLY RESPOND TO {{user}}'s message before additional character interactions
+- ENSURE each character has a UNIQUE way of expressing themselves
+- AVOID REPEATING the same words, phrases, or actions throughout the response
 `;
 
+        // Add specific focus based on message content
         if (hasEmotionalContent) {
             style += `
 - EMPHASIZE EMOTIONAL RESONANCE in this scene
 - Focus on character feelings, expressions, and emotional reactions
 - Use evocative language that conveys emotional depth
 - Show how emotions affect character interactions and decisions
+- Have characters DIRECTLY ACKNOWLEDGE the emotional content of {{user}}'s message
+- Show DISTINCT EMOTIONAL REACTIONS from each character based on their personality
 `;
         }
         
@@ -149,6 +168,8 @@ ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARAC
 - Create vivid, cinematic descriptions of movement and physical activity
 - Use strong verbs and sensory details to make actions feel immediate
 - Balance quick, tense actions with character reactions
+- Show how characters PHYSICALLY RESPOND to {{user}}'s message
+- Each character should display UNIQUE physical mannerisms and movements
 `;
         }
         
@@ -158,19 +179,46 @@ ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARAC
 - Create an air of mystery with subtle environmental details
 - Include character observations that hint at hidden meanings
 - Balance revealing information with maintaining curiosity
+- Show characters actively working to understand {{user}}'s mysterious message
+- Each character should show DIFFERENT LEVELS of curiosity or suspicion
+`;
+        }
+        
+        if (hasQuestionContent) {
+            style += `
+- DIRECTLY ANSWER {{user}}'s question through character dialogue
+- Show different characters offering DIFFERENT PERSPECTIVES on the answer
+- Create a natural discussion about {{user}}'s question
+- Ensure EVERY character acknowledges or contributes to answering the question
+- End the scene with a follow-up question to {{user}} that builds on the discussion
 `;
         }
         
         // If no specific style detected, add general storytelling guidance
-        if (!hasEmotionalContent && !hasActionContent && !hasMysteryContent) {
+        if (!hasEmotionalContent && !hasActionContent && !hasMysteryContent && !hasQuestionContent) {
             style += `
 - FOCUS ON NATURAL CONVERSATION FLOW with meaningful context
 - Create a balanced mix of dialogue and environmental details
 - Show subtle character interactions and non-verbal communication
 - Maintain a coherent narrative thread throughout the response
+- FIRST have characters respond directly to {{user}}'s message
+- ENSURE characters reference {{user}} by name in dialogue
+- Create UNIQUE personality expressions for each character
 `;
         }
         
+        // Add anti-repetition reminders
+        style += `
+ANTI-REPETITION GUIDANCE:
+- DO NOT REUSE verbs, adjectives, or adverbs within the response
+- VARY character actions - no character should perform the same action twice
+- USE DIFFERENT body language and facial expressions for each emotion
+- CREATE UNIQUE speech patterns and word choices for each character
+- DIVERSIFY interaction patterns between characters
+- ALTERNATE between dialogue, action, thought, and environment descriptions
+- TRACK word usage and avoid repeating significant words
+`;
+
         return style;
     }
 } 
