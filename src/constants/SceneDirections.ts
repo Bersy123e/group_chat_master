@@ -43,6 +43,11 @@ export const NARRATIVE_RULES = `
 13. {{user}} is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
 14. ALWAYS ENSURE AT LEAST ONE CHARACTER DIRECTLY ADDRESSES {{user}} during the scene.
 15. END THE SCENE with a character question or comment directed at {{user}} to maintain engagement.
+16. NEVER REPEAT THE START OF A PREVIOUS RESPONSE - each response must begin fresh and new.
+17. CREATE ENTIRELY DIFFERENT SCENE SETUPS AND OPENINGS for each response.
+18. DO NOT COPY TEXT FROM PREVIOUS RESPONSES, even if it seems relevant.
+19. KEEP TRACK OF WHAT'S BEEN SAID in previous responses to avoid redundancy.
+20. EACH RESPONSE SHOULD FEEL DISTINCT from all previous ones.
 `;
 
 // Техники диалога и взаимодействия
@@ -265,4 +270,10 @@ export const FINAL_REMINDER = `
 - MAINTAIN CONSISTENT FORMATTING throughout
 - INCLUDE ALL PRESENT CHARACTERS in the same response - do not focus on just one character
 - END WITH a character directly addressing {{user}} with a question or comment
+- NEVER COPY THE BEGINNING OF A PREVIOUS RESPONSE - make each response beginning unique
+- DO NOT REUSE CONTENT FROM PREVIOUS RESPONSES
+- AVOID TOKEN-LEVEL REPETITION from the starts of previous responses
+- START EACH RESPONSE COMPLETELY FRESH with a unique scene setting
+- NEVER REPEAT THE SAME ENVIRONMENT DESCRIPTION or character positioning
+- IF YOU NOTICE you're about to repeat something from before, CHANGE IT COMPLETELY
 `; 

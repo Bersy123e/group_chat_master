@@ -7,6 +7,7 @@ import { CharacterManager } from './CharacterManager';
  */
 export class ResponseProcessor {
     private characterManager: CharacterManager;
+    private previousResponses: string[] = []; // Track previous responses to detect repetition
     
     // Pre-compiled regular expressions for optimization
     private static readonly PREVIEW_PATTERN = /^Preview\s*$/gim;
@@ -41,6 +42,12 @@ export class ResponseProcessor {
                     foundFormatErrors: true
                 };
             }
+            
+            // First, clean up any LLM-generated message headers that could cause repetition
+            modifiedContent = this.removeMessageHeaders(modifiedContent);
+            
+            // Check for and remove repetition from previous responses
+            modifiedContent = this.removeRepetitionFromPreviousResponses(modifiedContent);
             
             // Remove "Preview" headers
             if (ResponseProcessor.PREVIEW_PATTERN.test(modifiedContent)) {
@@ -113,6 +120,13 @@ export class ResponseProcessor {
                 foundFormatErrors = true;
             }
             
+            // Store this response for future repetition detection
+            this.previousResponses.push(modifiedContent);
+            // Keep only the last 5 responses to prevent memory bloat
+            if (this.previousResponses.length > 5) {
+                this.previousResponses.shift();
+            }
+            
             return {
                 modifiedContent,
                 foundAbsentChars,
@@ -127,6 +141,91 @@ export class ResponseProcessor {
                 foundFormatErrors: true
             };
         }
+    }
+    
+    /**
+     * Removes message headers that the LLM might generate (like [Message X - CHARACTERS])
+     */
+    private removeMessageHeaders(content: string): string {
+        // Remove any LLM-generated message headers
+        const messageHeaderPattern = /\[Message \d+ - (?:USER|CHARACTERS)\]\n/g;
+        return content.replace(messageHeaderPattern, '');
+    }
+    
+    /**
+     * Checks for and removes content from the response that repeats from previous responses
+     */
+    private removeRepetitionFromPreviousResponses(content: string): string {
+        if (this.previousResponses.length === 0) return content;
+        
+        let modifiedContent = content;
+        
+        // First check for exact repetition of previous responses
+        for (const prevResponse of this.previousResponses) {
+            if (modifiedContent.includes(prevResponse) && prevResponse.length > 50) {
+                console.warn(`Detected exact repetition of previous response (length: ${prevResponse.length})`);
+                modifiedContent = modifiedContent.replace(prevResponse, '');
+            }
+        }
+        
+        // Check for partial, substantial repetitions
+        for (const prevResponse of this.previousResponses) {
+            // Get segments of previous response for partial matching (minimum 100 chars)
+            const segments = this.getSegments(prevResponse, 100);
+            
+            for (const segment of segments) {
+                if (modifiedContent.includes(segment)) {
+                    console.warn(`Detected partial repetition of previous response (segment length: ${segment.length})`);
+                    modifiedContent = modifiedContent.replace(segment, '');
+                }
+            }
+        }
+        
+        // Remove extra whitespace that might result from repetition removal
+        modifiedContent = modifiedContent.replace(/\n{3,}/g, '\n\n');
+        
+        return modifiedContent.trim();
+    }
+    
+    /**
+     * Breaks down a text into smaller overlapping segments for repetition detection
+     */
+    private getSegments(text: string, minLength: number): string[] {
+        if (text.length <= minLength) return [text];
+        
+        const segments: string[] = [];
+        
+        // Extract paragraphs
+        const paragraphs = text.split(/\n\n+/);
+        
+        // Process as potential segments
+        let currentSegment = '';
+        
+        for (const paragraph of paragraphs) {
+            // Skip very short paragraphs
+            if (paragraph.length < 20) continue;
+            
+            // If the paragraph alone is large enough, add it
+            if (paragraph.length >= minLength) {
+                segments.push(paragraph);
+                continue;
+            }
+            
+            // Otherwise, build up segments across paragraphs
+            currentSegment += paragraph + '\n\n';
+            
+            if (currentSegment.length >= minLength) {
+                segments.push(currentSegment.trim());
+                currentSegment = ''; // Reset for the next segment
+            }
+        }
+        
+        // If there's any remaining segment, add it
+        if (currentSegment.length > 0) {
+            segments.push(currentSegment.trim());
+        }
+        
+        return segments;
     }
     
     /**

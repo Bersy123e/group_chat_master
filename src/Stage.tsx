@@ -43,24 +43,27 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
             this.characterManager.setCharacterStates(state.characterStates);
         }
     }
-    
+
     async beforePrompt(userMessage: Message): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
         // Используем processMessage для обработки входящего сообщения
         const isFirstMessage = this.responseHistory.length === 0;
         return this.processMessage(userMessage, isFirstMessage);
     }
-
+        
     async processMessage(userMessage: Message, isFirstMessage: boolean): Promise<Partial<StageResponse<ChatStateType, MessageStateType>>> {
-        // Extract conversation history
+        // Extract conversation history with clear delineation between messages
         const fullHistory = this.responseHistory
-            .map(entry => {
+            .map((entry, index) => {
+                // Add a message number for easier tracking and delineation
                 if (entry.responders.length === 0) {
-                    return `{{user}}: ${entry.messageContent}`;
+                    // User message
+                    return `[Message ${index + 1} - USER]\n{{user}}: ${entry.messageContent}`;
                 } else {
-                    return `${entry.messageContent}`;
+                    // Bot/character response - add a header to clearly mark it
+                    return `[Message ${index + 1} - CHARACTERS]\n${entry.messageContent}`;
                 }
             })
-            .join('\n\n');
+            .join('\n\n---\n\n'); // Add clear separators between messages
         
         // Определяем основных персонажей, к которым обращено сообщение пользователя
         let primaryResponders: string[] = [];
@@ -153,4 +156,4 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
     render(): ReactElement {
         return <></>;
     }
-} 
+}

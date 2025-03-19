@@ -62,6 +62,20 @@ USER ENGAGEMENT REMINDER:
 - END the scene with a character addressing {{user}} directly
 `;
 
+        // Add explicit cross-response repetition prevention
+        const antiRepetitionGuidance = `
+CROSS-RESPONSE REPETITION PREVENTION:
+- GENERATE COMPLETELY NEW CONTENT for this response
+- DO NOT repeat content from previous responses
+- DO NOT continue previous narrative exactly where it left off
+- CREATE NEW DIALOGUE, NEW ACTIONS, and NEW NARRATIVE elements
+- DO NOT reuse the same scene setting or atmosphere as before
+- AVOID repeating any significant phrases or exchanges from earlier responses
+- NEVER repeat the beginning of a previous response (even partially)
+- EACH RESPONSE MUST BE FRESH, UNIQUE, and STANDALONE (while maintaining continuity)
+- IF you feel like you're repeating something from before, CHANGE IT COMPLETELY
+`;
+
         // Build full scene instructions
         return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have characters directly respond to {{user}}'s message, followed by natural interactions among all present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
@@ -77,6 +91,8 @@ ${characterRelationships}
 
 ${userFocusReminder}
 
+${antiRepetitionGuidance}
+
 NARRATIVE STYLE:
 ${narrativeStyle}
 
@@ -85,13 +101,14 @@ ${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}N
 OUTPUT FORMAT - EXTREMELY IMPORTANT:
 ${Directions.OUTPUT_FORMAT}
 
-DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions in your response.
+DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions in your response. NEVER copy or repeat the beginning of previous responses.
 
 CRITICAL NARRATIVE RULES:
 ${Directions.NARRATIVE_RULES}
 ${isAmbientFocused ? '16. FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on {{user}}\'s message.' : '16. Balance responding to {{user}} with character interactions.'}
 ${!isFirstMessage ? '17. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '17. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
 ${primaryResponders.length > 0 ? '18. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characterManager.getCharacter(id)?.name || '').join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
+19. NEVER COPY OR PARTIALLY COPY THE START OF A PREVIOUS RESPONSE - each response must begin fresh.
 
 DIALOGUE & INTERACTION TECHNIQUES:
 ${Directions.DIALOGUE_TECHNIQUES}
@@ -125,7 +142,8 @@ ${Directions.SCENE_DYNAMIC_VARIATION}
 
 FINAL REMINDER - EXTREMELY IMPORTANT:
 ${Directions.FINAL_REMINDER}
-${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}`;
+${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}
+- NEVER COPY OR PARTIALLY COPY THE START OF PREVIOUS RESPONSES - begin completely fresh!`;
     }
     
     /**
@@ -148,6 +166,8 @@ ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARAC
 - EXPLICITLY RESPOND TO {{user}}'s message before additional character interactions
 - ENSURE each character has a UNIQUE way of expressing themselves
 - AVOID REPEATING the same words, phrases, or actions throughout the response
+- CREATE A FRESH AND NEW SCENE each time - do not repeat previous scenes or scenarios
+- START FRESH with a new narrative approach for EACH response
 `;
 
         // Add specific focus based on message content
