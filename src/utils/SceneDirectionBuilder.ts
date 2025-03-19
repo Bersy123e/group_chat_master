@@ -3,8 +3,8 @@ import { CharacterManager } from './CharacterManager';
 import * as Directions from '../constants/SceneDirections';
 
 /**
- * Класс для сборки инструкций сцены
- * Компонует отдельные модули инструкций в единый текст для LLM
+ * Scene Direction Builder class
+ * Composes separate instruction modules into a unified text for LLM
  */
 export class SceneDirectionBuilder {
     private characterManager: CharacterManager;
@@ -14,7 +14,7 @@ export class SceneDirectionBuilder {
     }
     
     /**
-     * Строит полные инструкции для сцены на основе текущего состояния
+     * Builds full scene instructions based on current state
      */
     public buildStageDirections(
         userMessage: Message,
@@ -22,35 +22,38 @@ export class SceneDirectionBuilder {
         fullHistory: string = '',
         primaryResponders: string[] = []
     ): string {
-        // Получаем описания персонажей
+        // Get character descriptions
         const characterDescriptions = this.characterManager.createCharacterDescriptions();
         
-        // Получаем описание сцены
+        // Get scene description
         const sceneDescription = this.characterManager.createSceneDescription();
         
-        // Получаем информацию об отсутствующих персонажах
+        // Get information about absent characters
         const absentCharactersInfo = this.characterManager.getAbsentCharactersInfo();
         
-        // Определяем, должна ли быть сцена более ориентирована на окружение
-        // Если сообщение пользователя короткое или приветствие, фокусируемся на описании мира
+        // Determine if the scene should be more ambient-focused
+        // If the user message is short or a greeting, focus on world description
         const isAmbientFocused = 
             userMessage.content.length < 15 || 
             /^(hi|hello|hey|greetings|sup|yo|what's up|how are you)/i.test(userMessage.content);
         
-        // Создаем текст с указанием основных персонажей, к которым направлено сообщение
+        // Create text with primary characters addressed
         const primaryFocusText = primaryResponders.length > 0 ? 
             `CHARACTERS DIRECTLY ADDRESSED: ${primaryResponders.map(id => 
                 this.characterManager.getCharacter(id)?.name || '').join(", ")}` : '';
                 
-        // Специальные инструкции для первого сообщения
+        // Special instructions for first message
         const firstMessageInstructions = isFirstMessage ? 
             `This is the FIRST MESSAGE in the conversation. Start by introducing the scene and characters naturally. Establish the setting and initial dynamics between characters. Respond to the user's first message in a way that welcomes them to the conversation.` : '';
         
-        // Отношения персонажей - выводятся из истории
+        // Character relationships - derived from history
         const characterRelationships = `The characters have a shared history and ongoing relationships based on their previous interactions. They should reference past conversations and events when appropriate, building on established dynamics.`;
     
-        // Собираем все инструкции в один текст
-        return `System: YOU MUST CREATE ONE SINGLE UNIFIED NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with the most contextually appropriate character responding first, then INCLUDE all other present characters in the same flowing response. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
+        // Determine narrative style based on user message
+        const narrativeStyle = this.determineNarrativeStyle(userMessage.content);
+        
+        // Build full scene instructions
+        return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have the most contextually appropriate character respond first, followed by natural interactions with all other present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
 
 CRITICAL USER RULE - {{user}} IS NEVER A CHARACTER IN YOUR NARRATIVE. NEVER GENERATE RESPONSES FOR {{user}}. {{user}} exists outside the narrative and only sends input messages.
 
@@ -61,6 +64,9 @@ ${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}$
 
 CHARACTER RELATIONSHIPS:
 ${characterRelationships}
+
+NARRATIVE STYLE:
+${narrativeStyle}
 
 ${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from {{user}}: "${userMessage.content}"
 
@@ -108,5 +114,63 @@ ${Directions.SCENE_DYNAMIC_VARIATION}
 FINAL REMINDER - EXTREMELY IMPORTANT:
 ${Directions.FINAL_REMINDER}
 ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}`;
+    }
+    
+    /**
+     * Determines the appropriate narrative style based on user message
+     */
+    private determineNarrativeStyle(message: string): string {
+        // Check for emotional content that might influence the narrative style
+        const hasEmotionalContent = /(\bsad\b|\bangry\b|\bhappy\b|\bexcited\b|\bafraid\b|\bscared\b|\blove\b|\bhate\b)/i.test(message);
+        const hasActionContent = /(\brun\b|\bjump\b|\bfight\b|\bmove\b|\battack\b|\bdefend\b|\bprotect\b)/i.test(message);
+        const hasMysteryContent = /(\bmystery\b|\bsecret\b|\bclue\b|\binvestigate\b|\bunknown\b|\bhidden\b)/i.test(message);
+        
+        let style = `
+- Create a vivid, flowing narrative with meaningful descriptions
+- Balance dialogue with environmental and character descriptions
+- Include small but meaningful details about the scene and characters
+- Show internal character thoughts and reactions
+- Use varied pacing appropriate to the mood
+- Create a natural story progression within each response
+`;
+
+        if (hasEmotionalContent) {
+            style += `
+- EMPHASIZE EMOTIONAL RESONANCE in this scene
+- Focus on character feelings, expressions, and emotional reactions
+- Use evocative language that conveys emotional depth
+- Show how emotions affect character interactions and decisions
+`;
+        }
+        
+        if (hasActionContent) {
+            style += `
+- EMPHASIZE DYNAMIC ACTION in this scene
+- Create vivid, cinematic descriptions of movement and physical activity
+- Use strong verbs and sensory details to make actions feel immediate
+- Balance quick, tense actions with character reactions
+`;
+        }
+        
+        if (hasMysteryContent) {
+            style += `
+- EMPHASIZE ATMOSPHERE AND INTRIGUE in this scene
+- Create an air of mystery with subtle environmental details
+- Include character observations that hint at hidden meanings
+- Balance revealing information with maintaining curiosity
+`;
+        }
+        
+        // If no specific style detected, add general storytelling guidance
+        if (!hasEmotionalContent && !hasActionContent && !hasMysteryContent) {
+            style += `
+- FOCUS ON NATURAL CONVERSATION FLOW with meaningful context
+- Create a balanced mix of dialogue and environmental details
+- Show subtle character interactions and non-verbal communication
+- Maintain a coherent narrative thread throughout the response
+`;
+        }
+        
+        return style;
     }
 } 

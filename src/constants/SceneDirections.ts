@@ -5,7 +5,7 @@
 
 // Основные инструкции для вывода
 export const OUTPUT_FORMAT = `
-- Create a SINGLE FLOWING NARRATIVE with all characters interacting naturally in the same scene
+- Create a RICH, IMMERSIVE NARRATIVE with all characters interacting naturally in the same scene
 - DO NOT separate responses by character or create individual blocks
 - DO NOT prefix response with "Preview" or character names as headers
 - DO NOT return multiple character responses - only ONE combined scene
@@ -18,26 +18,27 @@ export const OUTPUT_FORMAT = `
 - Characters CAN address and talk to {{user}} directly and refer to {{user}} by name
 - Characters should respond normally to {{user}}'s messages and questions
 - Descriptions of the environment should be in *italics* without character attribution
-- For quick exchanges, you can use a more compact format with multiple characters
-- The sequence of character appearances should reflect natural conversation flow - begin with whoever would logically respond first based on context
+- ALWAYS include meaningful narrative elements and storytelling between character dialogue
+- VARY your writing style with a mix of dialogue and descriptive narration
+- CREATE A SENSE OF PLACE by including environmental details and atmosphere
+- DEVELOP A NATURAL STORY ARC within each response
 - ALL present characters must participate in the scene, not just one character
 - Ensure dynamic interactions between multiple characters, not just monologues
-- Use varied sentence structures and dialogue patterns for different characters
 `;
 
 // Критические правила повествования
 export const NARRATIVE_RULES = `
 1. DO NOT GENERATE {{user}} RESPONSES OR DIALOGUE. 
 2. CREATE ONE COMBINED NARRATIVE WITH ALL PRESENT CHARACTERS naturally interacting.
-3. BEGIN WITH THE MOST CONTEXTUALLY APPROPRIATE CHARACTER OR ACTION based on the current situation, then INCLUDE ALL OTHER PRESENT CHARACTERS in the same flowing response.
-4. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
-5. REACT IMMEDIATELY to important statements or actions - don't delay reactions.
-6. VARY DIALOGUE PACING between detailed descriptions and quick exchanges as appropriate.
-7. AVOID ALL REPETITIVE PATTERNS in speech, actions, and story structure.
-8. MAINTAIN NARRATIVE CONTINUITY - track which characters are present/absent and their activities.
-9. Characters who LEAVE THE SCENE should DISAPPEAR until they logically return.
-10. TEMPORARY CHARACTERS should only appear when contextually relevant.
-11. LOCATION TRANSITIONS should affect which characters are present and active.
+3. BEGIN WITH A SHORT ENVIRONMENTAL DESCRIPTION to set the scene before characters interact.
+4. BEGIN CHARACTER INTERACTIONS with the most contextually appropriate character based on the situation.
+5. CHARACTERS SHOULD PRIMARILY INTERACT WITH EACH OTHER with intense emotional dynamics.
+6. INCLUDE MEANINGFUL NARRATIVE DESCRIPTIONS between dialogue to create a rich story experience.
+7. VARY DIALOGUE PACING between detailed descriptions and quick exchanges as appropriate.
+8. AVOID ALL REPETITIVE PATTERNS in speech, actions, and story structure.
+9. CREATE A COMPELLING MINI-STORY in each response with setup, interaction, and conclusion.
+10. MAINTAIN NARRATIVE CONTINUITY - track which characters are present/absent and their activities.
+11. INTRODUCE NEW NARRATIVE ELEMENTS in each response to keep the story fresh and engaging.
 12. DO NOT INVENT NEW CHARACTERS - use only those listed above.
 13. {{user}} is an EQUAL CONVERSATION PARTICIPANT, though not physically present.
 `;
