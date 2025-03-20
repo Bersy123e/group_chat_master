@@ -64,7 +64,7 @@ export class Stage extends StageBase<InitStateType, ChatStateType, MessageStateT
                 }
             })
             .join('\n\n---\n\n'); // Add clear separators between messages
-        
+
         // Определяем основных персонажей, к которым обращено сообщение пользователя
         let primaryResponders: string[] = [];
         const activeChars = this.characterManager.getActiveCharacters();

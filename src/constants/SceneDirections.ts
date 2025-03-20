@@ -307,7 +307,7 @@ YOUR RESPONSE MUST BE IN A NATURAL NARRATIVE FORMAT, BUT YOU MUST TRACK THE FOLL
       "type": "dialogue" | "action" | "thought" | "environment",
       "character": string | null,    // null for environment descriptions
       "content": string,             // The actual text content
-      "target": string | null,       // Who it's directed at (user/character/null)
+      "target": string | null,       // Who it's directed at ({{user}}/character/null)
       "emotion": string,             // Primary emotion being expressed
       "physical_state": {
         "position": string,          // sitting/standing/etc
@@ -320,7 +320,7 @@ YOUR RESPONSE MUST BE IN A NATURAL NARRATIVE FORMAT, BUT YOU MUST TRACK THE FOLL
     "user_message_addressed": boolean,
     "conversation_topics": string[],
     "unresolved_threads": string[],
-    "scene_conclusion": string
+    "scene_conclusion": string       // How the scene ends, leading to {{user}} response
   }
 }
 
@@ -334,7 +334,7 @@ BUT DISPLAY YOUR RESPONSE IN THIS FORMAT:
 
 [Continue with natural flowing narrative, mixing dialogue, actions, and environmental details. Track character positions and items but describe them naturally in the text.]
 
-*Scene concludes with a character addressing the user directly, maintaining the established atmosphere.*
+*Scene concludes with a character addressing {{user}} directly, maintaining the established atmosphere.*
 
 FORMAT RULES:
 1. Write in natural, flowing narrative style
@@ -343,4 +343,4 @@ FORMAT RULES:
 4. Use * * for actions, thoughts, and environment descriptions
 5. Include character positions and states naturally in the narrative
 6. Maintain consistent tracking of items and physical states
-7. End with engaging user interaction`; 
+7. End with engaging {{user}} interaction`; 

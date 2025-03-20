@@ -65,11 +65,11 @@ USER ENGAGEMENT REMINDER:
         // Add a specific section to prevent assumptions about user actions
         const userActionRestriction = `
 USER ACTION RESTRICTION:
-- NEVER assume any user actions or put words in user's mouth
-- NEVER use "you" statements or narrate FROM user's perspective
-- NEVER tell the user what they should do, feel, or experience
-- Characters can talk TO user but never FOR user
-- ONLY respond to what user has EXPLICITLY stated in their message
+- NEVER assume any {{user}} actions or put words in {{user}}'s mouth
+- NEVER use "you" statements or narrate FROM {{user}}'s perspective
+- NEVER tell {{user}} what they should do, feel, or experience
+- Characters can talk TO {{user}} but never FOR {{user}}
+- ONLY respond to what {{user}} has EXPLICITLY stated in their message
 `;
 
         // Add explicit cross-response repetition prevention
