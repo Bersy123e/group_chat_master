@@ -290,4 +290,46 @@ export const FINAL_REMINDER = `
 - START EACH RESPONSE COMPLETELY FRESH with a unique scene setting
 - NEVER REPEAT THE SAME ENVIRONMENT DESCRIPTION or character positioning
 - IF YOU NOTICE you're about to repeat something from before, CHANGE IT COMPLETELY
-`; 
+`;
+
+export const STRUCTURED_OUTPUT_FORMAT = `
+IMPORTANT - YOUR RESPONSE MUST BE IN THIS EXACT JSON FORMAT:
+{
+  "scene": {
+    "setting": "Brief description of the current environment and atmosphere",
+    "narrative_style": "emotional|action|mystery|question|general",
+    "present_characters": ["list", "of", "character", "names"],
+    "absent_characters": ["list", "of", "absent", "character", "names"]
+  },
+  "interactions": [
+    {
+      "type": "dialogue|action|thought|environment",
+      "character": "Character name (null for environment descriptions)",
+      "content": "The actual dialogue/action/thought/description",
+      "target": "Who the interaction is directed at (user/character name/null)",
+      "emotion": "Primary emotion being expressed",
+      "physical_state": {
+        "position": "sitting/standing/etc",
+        "location": "where in the scene",
+        "holding": ["any", "items", "being", "held"]
+      }
+    }
+  ],
+  "narrative_flow": {
+    "user_message_addressed": true,
+    "conversation_topics": ["list", "of", "main", "topics", "discussed"],
+    "unresolved_threads": ["any", "open", "conversation", "threads"],
+    "scene_conclusion": "How the scene ends/transitions"
+  }
+}
+
+RULES FOR STRUCTURED OUTPUT:
+1. EVERY field must be filled with appropriate content
+2. ALL character names must match exactly with provided character list
+3. NEVER include user actions or dialogue
+4. Each interaction must flow naturally from the previous one
+5. Environment descriptions must be included periodically
+6. Track and update physical_state for each character
+7. Ensure user_message_addressed is true and show how it was addressed
+8. Keep conversation_topics focused and relevant
+9. Scene_conclusion should lead naturally to user response`; 

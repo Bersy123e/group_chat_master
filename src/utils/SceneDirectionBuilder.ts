@@ -115,10 +115,8 @@ ${narrativeStyle}
 
 ${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from {{user}}: "${userMessage.content}"
 
-OUTPUT FORMAT - EXTREMELY IMPORTANT:
-${Directions.OUTPUT_FORMAT}
-
-DO NOT deviate from this format. DO NOT include any {{user}} dialogue or actions in your response. NEVER copy or repeat the beginning of previous responses.
+STRUCTURED OUTPUT FORMAT:
+${Directions.STRUCTURED_OUTPUT_FORMAT}
 
 CRITICAL NARRATIVE RULES:
 ${Directions.NARRATIVE_RULES}
@@ -142,16 +140,13 @@ ${Directions.USER_REPRESENTATION}
 ${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n' + Directions.DIRECTLY_ADDRESSED_RULES + '\n\n' : ''}MATURE CONTENT GUIDELINES:
 ${Directions.MATURE_CONTENT_GUIDELINES}
 
-${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n' + Directions.DIRECTLY_ADDRESSED_RULES + '\n\n' : ''}MATURE CONTENT GUIDELINES - EXPLICIT CLARITY REQUIRED:
-${Directions.EXPLICIT_MATURE_CONTENT}
-
 RESPONSE FORMAT:
 ${Directions.RESPONSE_FORMAT}
 
 ANTI-REPETITION TECHNIQUES:
 ${Directions.ANTI_REPETITION}
 
-ADVANCED DIALOGUE VARIATION - EXTREMELY IMPORTANT:
+ADVANCED DIALOGUE VARIATION:
 ${Directions.ADVANCED_DIALOGUE_VARIATION}
 
 SCENE DYNAMIC VARIATION:
@@ -160,7 +155,9 @@ ${Directions.SCENE_DYNAMIC_VARIATION}
 FINAL REMINDER - EXTREMELY IMPORTANT:
 ${Directions.FINAL_REMINDER}
 ${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}
-- NEVER COPY OR PARTIALLY COPY THE START OF PREVIOUS RESPONSES - begin completely fresh!`;
+- NEVER COPY OR PARTIALLY COPY THE START OF PREVIOUS RESPONSES - begin completely fresh!
+
+YOUR RESPONSE MUST BE IN THE STRUCTURED JSON FORMAT SPECIFIED ABOVE.`;
     }
     
     /**
