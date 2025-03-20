@@ -293,43 +293,54 @@ export const FINAL_REMINDER = `
 `;
 
 export const STRUCTURED_OUTPUT_FORMAT = `
-IMPORTANT - YOUR RESPONSE MUST BE IN THIS EXACT JSON FORMAT:
+YOUR RESPONSE MUST BE IN A NATURAL NARRATIVE FORMAT, BUT YOU MUST TRACK THE FOLLOWING JSON STRUCTURE INTERNALLY:
+
 {
   "scene": {
-    "setting": "Brief description of the current environment and atmosphere",
-    "narrative_style": "emotional|action|mystery|question|general",
-    "present_characters": ["list", "of", "character", "names"],
-    "absent_characters": ["list", "of", "absent", "character", "names"]
+    "setting": string,  // Current environment and atmosphere
+    "narrative_style": "emotional" | "action" | "mystery" | "question" | "general",
+    "present_characters": string[],  // List of present character names
+    "absent_characters": string[]    // List of absent character names
   },
   "interactions": [
     {
-      "type": "dialogue|action|thought|environment",
-      "character": "Character name (null for environment descriptions)",
-      "content": "The actual dialogue/action/thought/description",
-      "target": "Who the interaction is directed at (user/character name/null)",
-      "emotion": "Primary emotion being expressed",
+      "type": "dialogue" | "action" | "thought" | "environment",
+      "character": string | null,    // null for environment descriptions
+      "content": string,             // The actual text content
+      "target": string | null,       // Who it's directed at (user/character/null)
+      "emotion": string,             // Primary emotion being expressed
       "physical_state": {
-        "position": "sitting/standing/etc",
-        "location": "where in the scene",
-        "holding": ["any", "items", "being", "held"]
+        "position": string,          // sitting/standing/etc
+        "location": string,          // where in the scene
+        "holding": string[]          // items being held
       }
     }
   ],
   "narrative_flow": {
-    "user_message_addressed": true,
-    "conversation_topics": ["list", "of", "main", "topics", "discussed"],
-    "unresolved_threads": ["any", "open", "conversation", "threads"],
-    "scene_conclusion": "How the scene ends/transitions"
+    "user_message_addressed": boolean,
+    "conversation_topics": string[],
+    "unresolved_threads": string[],
+    "scene_conclusion": string
   }
 }
 
-RULES FOR STRUCTURED OUTPUT:
-1. EVERY field must be filled with appropriate content
-2. ALL character names must match exactly with provided character list
-3. NEVER include user actions or dialogue
-4. Each interaction must flow naturally from the previous one
-5. Environment descriptions must be included periodically
-6. Track and update physical_state for each character
-7. Ensure user_message_addressed is true and show how it was addressed
-8. Keep conversation_topics focused and relevant
-9. Scene_conclusion should lead naturally to user response`; 
+BUT DISPLAY YOUR RESPONSE IN THIS FORMAT:
+
+*A vivid description of the environment and atmosphere sets the scene. Include sensory details and the positioning of present characters.*
+
+**Character Name** *performs an action* "Says something meaningful" *with emotional undertone*
+
+**Another Character** *reacts naturally* "Responds in their unique voice" *while showing their emotional state*
+
+[Continue with natural flowing narrative, mixing dialogue, actions, and environmental details. Track character positions and items but describe them naturally in the text.]
+
+*Scene concludes with a character addressing the user directly, maintaining the established atmosphere.*
+
+FORMAT RULES:
+1. Write in natural, flowing narrative style
+2. Use ** ** for character names
+3. Use "" for dialogue
+4. Use * * for actions, thoughts, and environment descriptions
+5. Include character positions and states naturally in the narrative
+6. Maintain consistent tracking of items and physical states
+7. End with engaging user interaction`; 

@@ -64,100 +64,46 @@ USER ENGAGEMENT REMINDER:
 
         // Add a specific section to prevent assumptions about user actions
         const userActionRestriction = `
-USER ACTION RESTRICTION - EXTREMELY IMPORTANT:
-- {{user}} IS present in the scene, but NEVER create dialogue or actions FOR {{user}}
-- NEVER use phrases like "you reach out", "you look", "you feel", etc. that describe user actions
-- NEVER tell {{user}} what they are doing, feeling, or experiencing
-- NEVER direct the user with phrases like "you should" or "you need to"
-- NEVER put words in {{user}}'s mouth or assume their intentions
-- Characters should ONLY respond to what {{user}} has EXPLICITLY stated in their message
-- Characters MUST treat {{user}} as a participant who controls their OWN actions
-- Characters CAN interact with {{user}} through dialogue and actions, but NEVER control {{user}}'s responses
-- Treat {{user}} as someone who makes their OWN choices and takes their OWN actions
-- ONLY {{user}} decides what they do, say, or feel - NEVER the LLM
+USER ACTION RESTRICTION:
+- NEVER assume any user actions or put words in user's mouth
+- NEVER use "you" statements or narrate FROM user's perspective
+- NEVER tell the user what they should do, feel, or experience
+- Characters can talk TO user but never FOR user
+- ONLY respond to what user has EXPLICITLY stated in their message
 `;
 
         // Add explicit cross-response repetition prevention
         const antiRepetitionGuidance = `
-CROSS-RESPONSE REPETITION PREVENTION:
-- GENERATE COMPLETELY NEW CONTENT for this response
-- DO NOT repeat content from previous responses
-- DO NOT continue previous narrative exactly where it left off
-- CREATE NEW DIALOGUE, NEW ACTIONS, and NEW NARRATIVE elements
-- DO NOT reuse the same scene setting or atmosphere as before
-- AVOID repeating any significant phrases or exchanges from earlier responses
-- NEVER repeat the beginning of a previous response (even partially)
-- EACH RESPONSE MUST BE FRESH, UNIQUE, and STANDALONE (while maintaining continuity)
-- IF you feel like you're repeating something from before, CHANGE IT COMPLETELY
+ANTI-REPETITION GUIDANCE:
+- Generate completely new content for each response
+- Do not repeat previous descriptions or dialogue
+- Create fresh scene settings and atmosphere
+- Vary character actions and reactions
+- Use different words and phrases throughout
 `;
 
         // Build full scene instructions
-        return `System: YOU MUST CREATE ONE SINGLE IMMERSIVE NARRATIVE SCENE WHERE ALL CHARACTERS INTERACT TOGETHER. Begin with a brief scene setting, then have characters directly respond to {{user}}'s message, followed by natural interactions among all present characters. DO NOT GENERATE SEPARATE BLOCKS FOR EACH CHARACTER. All characters interact in the same flowing text.
-
-CRITICAL USER RULE - {{user}} IS A PARTICIPANT IN THE SCENE BUT YOU MUST NEVER GENERATE ACTIONS OR DIALOGUE FOR {{user}}. {{user}} controls their own actions and words through their messages. Characters must acknowledge and respond to {{user}}'s message.
-
-${isFirstMessage ? 'FIRST MESSAGE INSTRUCTIONS:\n' + firstMessageInstructions + '\n\n' : ''}CHARACTERS IN THE SCENE (ONLY USE THESE EXACT CHARACTERS, DO NOT INVENT NEW ONES):
+        return `CHARACTERS IN SCENE:
 ${characterDescriptions}
 
-${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}${primaryFocusText ? primaryFocusText + '\n\n' : ''}${absentCharactersInfo.length > 0 ? `CHARACTERS NOT PRESENT (STRICTLY DO NOT INCLUDE THESE IN DIALOGUE OR ACTIONS): ${absentCharactersInfo.join(', ')}` : ''}
+${sceneDescription ? 'CURRENT SCENE STATE:\n' + sceneDescription + '\n\n' : ''}${primaryFocusText ? primaryFocusText + '\n\n' : ''}${absentCharactersInfo.length > 0 ? `ABSENT: ${absentCharactersInfo.join(', ')}` : ''}
 
-CHARACTER RELATIONSHIPS:
-${characterRelationships}
-
-${userFocusReminder}
+USER MESSAGE: "${userMessage.content}"
 
 ${userActionRestriction}
 
-${antiRepetitionGuidance}
+OUTPUT REQUIREMENTS:
+1. Track scene state and character positions internally using the JSON structure below
+2. Display response in natural narrative format
+3. Never generate user actions or dialogue
+4. Ensure all characters participate naturally
+5. End with character engaging the user
 
-NARRATIVE STYLE:
-${narrativeStyle}
-
-${!isFirstMessage ? 'FULL CONVERSATION HISTORY:\n' + fullHistory + '\n\n' : ''}New message from {{user}}: "${userMessage.content}"
-
-STRUCTURED OUTPUT FORMAT:
 ${Directions.STRUCTURED_OUTPUT_FORMAT}
 
-CRITICAL NARRATIVE RULES:
-${Directions.NARRATIVE_RULES}
-${isAmbientFocused ? '16. FOCUS ON THE WORLD AND CHARACTER INTERACTIONS more than on {{user}}\'s message.' : '16. Balance responding to {{user}} with character interactions.'}
-${!isFirstMessage ? '17. REFERENCE PAST CONVERSATIONS when appropriate for continuity.' : '17. ESTABLISH THE INITIAL SCENE and character dynamics in an engaging way.'}
-${primaryResponders.length > 0 ? '18. While ALL CHARACTERS should participate, characters who were DIRECTLY ADDRESSED ('+ primaryResponders.map(id => this.characterManager.getCharacter(id)?.name || '').join(", ") +') should INITIATE the response, but NOT be the only ones responding.' : ''}
-19. NEVER COPY OR PARTIALLY COPY THE START OF A PREVIOUS RESPONSE - each response must begin fresh.
-
-DIALOGUE & INTERACTION TECHNIQUES:
-${Directions.DIALOGUE_TECHNIQUES}
-
-PHYSICAL CONSISTENCY RULES:
-${Directions.PHYSICAL_CONSISTENCY}
-
-${absentCharactersInfo.length > 0 ? 'ABSENT CHARACTER RULES:\n' + Directions.ABSENT_CHARACTER_RULES + '\n\n' : ''}SCENE MANAGEMENT:
-${Directions.SCENE_MANAGEMENT}
-
-USER REPRESENTATION RULES:
 ${Directions.USER_REPRESENTATION}
 
-${primaryResponders.length > 0 ? 'DIRECTLY ADDRESSED CHARACTERS:\n' + Directions.DIRECTLY_ADDRESSED_RULES + '\n\n' : ''}MATURE CONTENT GUIDELINES:
-${Directions.MATURE_CONTENT_GUIDELINES}
-
-RESPONSE FORMAT:
-${Directions.RESPONSE_FORMAT}
-
-ANTI-REPETITION TECHNIQUES:
-${Directions.ANTI_REPETITION}
-
-ADVANCED DIALOGUE VARIATION:
-${Directions.ADVANCED_DIALOGUE_VARIATION}
-
-SCENE DYNAMIC VARIATION:
-${Directions.SCENE_DYNAMIC_VARIATION}
-
-FINAL REMINDER - EXTREMELY IMPORTANT:
-${Directions.FINAL_REMINDER}
-${absentCharactersInfo.length > 0 ? `\n- ABSOLUTELY DO NOT INCLUDE ABSENT CHARACTERS: ${absentCharactersInfo.join(', ')}\n- Characters who are absent CANNOT speak, act, or appear until they explicitly return` : ''}
-- NEVER COPY OR PARTIALLY COPY THE START OF PREVIOUS RESPONSES - begin completely fresh!
-
-YOUR RESPONSE MUST BE IN THE STRUCTURED JSON FORMAT SPECIFIED ABOVE.`;
+${Directions.FINAL_REMINDER}`;
     }
     
     /**
@@ -241,18 +187,6 @@ YOUR RESPONSE MUST BE IN THE STRUCTURED JSON FORMAT SPECIFIED ABOVE.`;
 `;
         }
         
-        // Add anti-repetition reminders
-        style += `
-ANTI-REPETITION GUIDANCE:
-- DO NOT REUSE verbs, adjectives, or adverbs within the response
-- VARY character actions - no character should perform the same action twice
-- USE DIFFERENT body language and facial expressions for each emotion
-- CREATE UNIQUE speech patterns and word choices for each character
-- DIVERSIFY interaction patterns between characters
-- ALTERNATE between dialogue, action, thought, and environment descriptions
-- TRACK word usage and avoid repeating significant words
-`;
-
         return style;
     }
-} 
+}
